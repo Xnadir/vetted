@@ -6,6 +6,10 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- npm package renamed to `skill-vet` (the name `vetted` is taken on npm).
+
 ## [0.1.0] - 2026-09-29
 
 ### Added

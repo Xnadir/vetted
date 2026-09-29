@@ -1,10 +1,10 @@
 {
-  "name": "vetted",
+  "name": "skill-vet",
   "version": "0.1.0",
   "description": "Agent skills that prove they work, and a zero-dependency scanner that vets any skill before you install it.",
   "type": "module",
   "bin": {
-    "vetted": "cli/vet.mjs"
+    "skill-vet": "cli/vet.mjs"
   },
   "files": [
     "cli/vet.mjs",

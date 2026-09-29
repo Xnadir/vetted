@@ -12,17 +12,17 @@ import { formatText, formatJson, formatMarkdown, formatGithub, summarize } from 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const VERSION = JSON.parse(readFileSync(join(HERE, "..", "package.json"), "utf8")).version;
 
-const HELP = `vetted ${VERSION}: check agent skills before you trust them
+const HELP = `skill-vet ${VERSION}: check agent skills before you trust them
 
 Usage
-  vetted vet [paths or owner/repo ...]   Check skills (default: current directory)
-  vetted vet --installed                 Check every skill your agents have installed
-  vetted rules                           List all rules
+  skill-vet vet [paths or owner/repo ...]   Check skills (default: current directory)
+  skill-vet vet --installed                 Check every skill your agents have installed
+  skill-vet rules                           List all rules
 
 Examples
-  npx github:nadirali1350/vetted vet ./skills
-  npx github:nadirali1350/vetted vet anthropics/skills        # vet a repo before installing it
-  npx github:nadirali1350/vetted vet --installed              # what are my skills costing me?
+  npx skill-vet vet ./skills
+  npx skill-vet vet anthropics/skills        # vet a repo before installing it
+  npx skill-vet vet --installed              # what are my skills costing me?
 
 Options
   --format <text|json|markdown|github>  Output format (default: text)
@@ -152,7 +152,7 @@ function main(argv) {
 
     const base = targets.length === 1 && cleanups.length === 1 ? targets[0] : process.cwd();
     if (!results.length && opts.format === "text") {
-      console.log(opts.installed ? "vetted · no installed skills found" : "vetted · no SKILL.md files found");
+      console.log(opts.installed ? "skill-vet · no installed skills found" : "skill-vet · no SKILL.md files found");
       return 0;
     }
     const render = { text: formatText, json: formatJson, markdown: formatMarkdown, github: formatGithub }[opts.format];
@@ -169,7 +169,7 @@ function main(argv) {
 try {
   process.exitCode = main(process.argv.slice(2));
 } catch (err) {
-  console.error(`vetted: ${err.message}`);
-  if (err.usage) console.error("Run `vetted --help` for usage.");
+  console.error(`skill-vet: ${err.message}`);
+  if (err.usage) console.error("Run `skill-vet --help` for usage.");
   process.exitCode = 2;
 }

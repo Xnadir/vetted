@@ -50,9 +50,9 @@ self-contained `SKILL.md`.
 **Vet a skill repo before you install it**
 
 ```bash
-npx github:nadirali1350/vetted vet anthropics/skills     # any GitHub repo
-npx github:nadirali1350/vetted vet ./my-skills           # a local folder
-npx github:nadirali1350/vetted vet --installed           # everything your agents have installed
+npx skill-vet vet anthropics/skills     # any GitHub repo
+npx skill-vet vet ./my-skills           # a local folder
+npx skill-vet vet --installed           # everything your agents have installed
 ```
 
 Node 18+ and nothing else. No install, no account, no network except the `git clone` when you

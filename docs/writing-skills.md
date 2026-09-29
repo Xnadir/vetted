@@ -72,7 +72,7 @@ A skill runs with your agent's permissions. It can tell the agent to run scripts
 and read files, and people install skills without reading them. Before installing a skill:
 
 ```bash
-npx github:nadirali1350/vetted vet owner/repo
+npx skill-vet vet owner/repo
 ```
 
 `vet` looks for download-and-execute, hidden Unicode, prompt injection, credential access,
