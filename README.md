@@ -242,6 +242,10 @@ Pocock's [skills](https://github.com/mattpocock/skills) (grilling, handoffs), an
 [`claude plugin eval`](https://code.claude.com/docs/en/plugin-evals), and the skill format is the
 open [Agent Skills](https://agentskills.io) spec.
 
+## Privacy
+
+The plugin has no code and collects nothing; `skill-vet` runs locally with no telemetry. Details in [PRIVACY.md](PRIVACY.md).
+
 ## License
 
 [MIT](LICENSE)
