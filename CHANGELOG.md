@@ -6,6 +6,11 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- Urdu translation of the README (`README.ur.md`), linked from the top of `README.md`.
+  Thanks @HarisShahnawaz.
+
 ### Fixed
 
 - The vet command keeps nested SKILL.md resources inside their parent skill while continuing to
