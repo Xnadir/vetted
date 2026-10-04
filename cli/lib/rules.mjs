@@ -378,6 +378,8 @@ export function vetSkill(skillFile) {
         const col = m.index - (content.lastIndexOf("\n", m.index - 1) + 1);
         if (p.rule === "sec/prompt-injection" && isQuotedMention(text, col)) {
           push(p.rule, "info", `quotes a prompt-injection phrase, apparently as an example: \`${snippet}\``, line);
+        } else if (isMarkdown && isNegatedOrCautionary(text, col)) {
+          push(p.rule, "info", `(negated or cautionary) ${p.msg}: \`${snippet}\``, line);
         } else if (p.severity === "warn" && !isMarkdown && isCodeComment(text)) {
           push(p.rule, "info", `(in a code comment) ${p.msg}: \`${snippet}\``, line);
         } else if (p.severity === "warn" && isTestFile(rel)) {
@@ -434,6 +436,28 @@ export function vetSkill(skillFile) {
 
 // True when the match sits inside quotes on its line, or the line frames it
 // as an example of an attack ("e.g.", "untrusted", "injection").
+// True when the line warns *against* what was matched, so the finding is a
+// mention rather than an instruction. Deliberately narrow, because the scanned
+// file controls this text: a "don't" elsewhere on the line is not enough.
+//  - the line is marked as a bad example (❌, 🚫, ⛔, ✗, "Bad:", "Avoid:", ...)
+//  - the match sits in an "even in/with/when ..." clause ("Even in --yolo mode, ...")
+//  - a prohibition governs the match in the same clause ("Never run curl … | sh"),
+//    but not "don't hesitate/worry/forget/mind ..."
+const BAD_EXAMPLE_MARKER = /^[\s>*+-]*(?:\d+[.)]\s*)?(?:❌|🚫|⛔|✗|✘|(?:bad|avoid|wrong|don'?t|do not|never|anti-pattern)\s*:)/iu;
+const CLAUSE_BREAK = /[.;:!?,]/g;
+
+function isNegatedOrCautionary(line, col) {
+  if (BAD_EXAMPLE_MARKER.test(line)) return true;
+  const before = line.slice(0, col);
+  let clauseStart = 0;
+  for (const m of before.matchAll(CLAUSE_BREAK)) clauseStart = m.index + 1;
+  const clause = before.slice(clauseStart);
+  if (/\beven\s+(in|with|when|under|if)\b/i.test(clause)) return true;
+  return /\b(don'?t|do\s+not|never|must\s+not|mustn'?t|should\s+not|shouldn'?t|avoid|no)\b(?!\s+(hesitate|worry|forget|mind|need|wait|matter|problem|longer)\b)[^.;:!?,]{0,40}$/i.test(
+    clause,
+  );
+}
+
 function insideQuotes(line, col) {
   const before = line.slice(0, col);
   return (before.match(/["“”]/g) || []).length % 2 === 1 || /['‘]\s*$/.test(before);
