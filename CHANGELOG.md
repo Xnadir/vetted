@@ -6,6 +6,10 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- CI runs unit tests on Node 18, 20, and 22 across Ubuntu, macOS, and Windows.
+
 ## [0.1.3] - 2026-10-04
 
 ### Added
