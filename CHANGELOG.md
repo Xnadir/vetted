@@ -16,6 +16,10 @@ All notable changes to this project are documented here. The format follows
 - The vet command keeps nested SKILL.md resources inside their parent skill while continuing to
   scan them for security findings. A nested SKILL.md that has its own frontmatter is still checked
   as a sub-skill.
+- Security rules no longer report errors for Markdown lines that warn *against* the behavior: lines
+  marked as bad examples (❌, 🚫, "Avoid:"), "even in `--yolo` mode, …" clauses, and matches
+  governed by a prohibition ("Never run …"). These are reported as info. "Don't hesitate to …" and
+  plain instructions stay errors. Found scanning microsoft/skills (#34).
 
 ## [0.1.2] - 2026-10-01
 
