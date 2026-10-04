@@ -1,6 +1,6 @@
 {
   "name": "@menadirali/skill-vet",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Agent skills that prove they work, and a zero-dependency scanner that vets any skill before you install it.",
   "type": "module",
   "bin": {

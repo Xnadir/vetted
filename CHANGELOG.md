@@ -6,6 +6,8 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.1.3] - 2026-10-04
+
 ### Added
 
 - Urdu translation of the README (`README.ur.md`), linked from the top of `README.md`.
@@ -15,7 +17,7 @@ All notable changes to this project are documented here. The format follows
 
 - The vet command keeps nested SKILL.md resources inside their parent skill while continuing to
   scan them for security findings. A nested SKILL.md that has its own frontmatter is still checked
-  as a sub-skill.
+  as a sub-skill. Thanks @PandaHUN777 (#43).
 - Security rules no longer report errors for Markdown lines that warn *against* the behavior: lines
   marked as bad examples (❌, 🚫, "Avoid:"), "even in `--yolo` mode, …" clauses, and matches
   governed by a prohibition ("Never run …"). These are reported as info. "Don't hesitate to …" and
