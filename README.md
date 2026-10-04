@@ -228,8 +228,22 @@ The most useful contributions, in order:
    accepted when it shows a positive Δ on current models, not before.
 3. **A `vet` rule**, or a false positive you hit on a real skill.
 
-Good first issues are labeled
-[`good first issue`](https://github.com/nadirali1350/vetted/labels/good%20first%20issue).
+**New here?** Pick one of the
+[good first issues](https://github.com/nadirali1350/vetted/labels/good%20first%20issue). Most are a
+single rule or file with a test to copy from. Comment to claim one, and PRs get reviewed within a day.
+It's also a fit for Hacktoberfest: those issues carry the `hacktoberfest` label.
+
+### Contributors
+
+Thank you to everyone who has shipped something here:
+
+- [@HarisShahnawaz](https://github.com/HarisShahnawaz): `sec/suspicious-install` typosquat rule, Urdu README
+- [@Mevayaan1](https://github.com/Mevayaan1): `skill-vet rules --format json`, `sec/sudo` rule
+- [@DYNOSuprovo](https://github.com/DYNOSuprovo): `--quiet` flag
+- [@xyi74976-del](https://github.com/xyi74976-del): Windsurf, Kiro, Cline, and Amp support for `--installed`
+- [@PandaHUN777](https://github.com/PandaHUN777): nested `SKILL.md` handling
+
+Your name goes here with your first merged PR.
 
 ## Prior art and thanks
 
