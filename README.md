@@ -240,7 +240,7 @@ Thank you to everyone who has shipped something here:
 - [@HarisShahnawaz](https://github.com/HarisShahnawaz): `sec/suspicious-install` typosquat rule, Urdu README
 - [@Mevayaan1](https://github.com/Mevayaan1): `skill-vet rules --format json`, `sec/sudo` rule
 - [@DYNOSuprovo](https://github.com/DYNOSuprovo): `--quiet` flag
-- [@xyi74976-del](https://github.com/xyi74976-del): Windsurf, Kiro, Cline, and Amp support for `--installed`
+- [@xyi74976-del](https://github.com/xyi74976-del): Windsurf, Kiro, Cline, and Amp support for `--installed`, the `sec/chmod-777` and `spec/license-missing` rules, and Node 18 in CI
 - [@PandaHUN777](https://github.com/PandaHUN777): nested `SKILL.md` handling
 
 Your name goes here with your first merged PR.
