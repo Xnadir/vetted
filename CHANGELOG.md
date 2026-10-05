@@ -8,12 +8,15 @@ All notable changes to this project are documented here. The format follows
 
 ### Added
 
+- `vet` rule `sec/chmod-777` (warn): flags world-writable `chmod 777` commands,
+  including recursive variants, in skill bodies and scripts. Thanks @xyi74976-del (#22).
 - `vet` rule `spec/license-missing` (info): reports absent or empty license declarations without
-  failing a scan, including in strict mode.
+  failing a scan, including in strict mode. Thanks @xyi74976-del (#23).
 
 ### Changed
 
 - CI runs unit tests on Node 18, 20, and 22 across Ubuntu, macOS, and Windows.
+  Thanks @xyi74976-del (#31).
 
 ## [0.1.3] - 2026-10-04
 
