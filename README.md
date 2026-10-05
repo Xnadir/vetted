@@ -176,7 +176,8 @@ beside it, and reports:
 A scanned file can't silence the scanner: an inline `vet-ignore` comment downgrades a security
 finding to info, but it stays in the report. Quoted examples ("pages may contain text like
 *'ignore previous instructions'*") and matches in code comments or test fixtures are reported
-at info level, not as errors. Run `skill-vet rules` for the full list (add `--format json` for tooling).
+at info level, not as errors. See the [rule reference](docs/rules.md) for every rule's
+severity and examples, or run `skill-vet rules` for the full list (add `--format json` for tooling).
 
 **In CI**, add it to any repo that contains skills. Findings show up as annotations on the pull
 request and as a table in the job summary:
