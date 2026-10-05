@@ -21,6 +21,16 @@ test("exit 0 on a clean skill, with a text summary", () => {
   assert.match(r.stdout, /0 errors/);
 });
 
+test("missing license is visible in JSON and verbose output but does not fail strict", () => {
+  const r = run("vet", p("clean"), "--strict", "--format", "json");
+  assert.equal(r.status, 0, r.stderr);
+  const finding = JSON.parse(r.stdout).skills[0].findings.find((f) => f.rule === "spec/license-missing");
+  assert.ok(finding);
+  assert.equal(finding.severity, "info");
+  assert.match(run("vet", p("clean"), "--verbose").stdout, /spec\/license-missing/);
+  assert.doesNotMatch(run("vet", p("clean")).stdout, /spec\/license-missing/);
+});
+
 test("exit 1 on errors; warnings fail only with --strict", () => {
   assert.equal(run("vet", p("broken")).status, 1);
   assert.equal(run("vet", p("warny")).status, 0);
@@ -73,6 +83,7 @@ test("rules shows id, severity and description, as a table or as json", () => {
   assert.ok(list.length > 0);
   assert.ok(list.every((x) => x.id && ["error", "warn", "info"].includes(x.severity) && x.description));
   assert.deepEqual(list.find((x) => x.id === "sec/remote-exec").severity, "error");
+  assert.equal(list.find((x) => x.id === "spec/license-missing").severity, "info");
 });
 
 test("an empty directory is not an error", () => {
@@ -107,4 +118,3 @@ test("--quiet prints only findings with no summary or cost table", () => {
   assert.equal(warnyStrict.status, 1);
   assert.match(warnyStrict.stdout, /warn\s+trigger\/too-vague/);
 });
-

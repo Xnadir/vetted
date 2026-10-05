@@ -45,6 +45,7 @@ const RULES = [
   ["spec/name-dir-mismatch", "error", "`name` must match the skill's directory"],
   ["spec/description-missing", "error", "`description` is required"],
   ["spec/description-length", "error", "`description` must be at most 1024 characters"],
+  ["spec/license-missing", "info", "Frontmatter has no license declaration"],
   ["spec/compatibility-length", "error", "`compatibility` must be 1-500 characters"],
   ["spec/metadata-shape", "warn", "`metadata` must map strings to strings"],
   ["spec/allowed-tools-shape", "warn", "`allowed-tools` should be a space-separated string"],

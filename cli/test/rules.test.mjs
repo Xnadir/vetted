@@ -4,13 +4,27 @@ import { vetSkill, crossSkillFindings } from "../lib/rules.mjs";
 import { sandbox, GOOD_DESC, rules } from "./helpers.mjs";
 
 const box = sandbox();
-const good = (extra = "") => `name: DIR\ndescription: ${GOOD_DESC}${extra}`;
+const good = (extra = "") => `name: DIR\ndescription: ${GOOD_DESC}\nlicense: MIT${extra}`;
 const make = (dir, fmText, body, extra) => vetSkill(box.skill(dir, fmText?.replace("DIR", dir) ?? null, body, extra));
 
 test("a well-formed skill has no findings", () => {
   const r = make("clean-skill", good());
   assert.deepEqual(rules(r), []);
   assert.ok(r.cost.descriptionTokens > 0);
+});
+
+test("spec: missing or empty license is informational", () => {
+  for (const extra of ["", "\nlicense:", "\nlicense: \"   \""]) {
+    const r = make("unlicensed", `name: DIR\ndescription: ${GOOD_DESC}${extra}`);
+    const f = r.findings.find((finding) => finding.rule === "spec/license-missing");
+    assert.ok(f, `missing license finding for ${JSON.stringify(extra)}`);
+    assert.equal(f.severity, "info");
+  }
+});
+
+test("spec: a declared license does not produce a missing-license finding", () => {
+  const r = make("licensed", good());
+  assert.ok(!rules(r).some((rule) => rule.endsWith("spec/license-missing")));
 });
 
 test("spec: missing frontmatter, name, description", () => {

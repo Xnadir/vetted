@@ -6,6 +6,11 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- `vet` rule `spec/license-missing` (info): reports absent or empty license declarations without
+  failing a scan, including in strict mode.
+
 ### Changed
 
 - CI runs unit tests on Node 18, 20, and 22 across Ubuntu, macOS, and Windows.

@@ -232,6 +232,8 @@ export function vetSkill(skillFile) {
   for (const w of parseWarnings) add("spec/frontmatter-parse", "warn", `frontmatter: ${w}`, "SKILL.md");
 
   if (data) {
+    if (typeof fm.license !== "string" || !fm.license.trim())
+      add("spec/license-missing", "info", "frontmatter has no `license`; declare the terms under which the skill can be reused");
     if (name === undefined || name === "") add("spec/name-missing", "error", "frontmatter has no `name`");
     else {
       if (name.length > LIMITS.nameMax) add("spec/name-format", "error", `name is ${name.length} characters; the limit is ${LIMITS.nameMax}`);
