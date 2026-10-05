@@ -27,6 +27,25 @@ test("exit 1 on errors; warnings fail only with --strict", () => {
   assert.equal(run("vet", p("warny"), "--strict").status, 1);
 });
 
+test("chmod 777 is a JSON warning and fails only in strict mode", () => {
+  const file = sandbox().skill("chmod-cli", `name: chmod-cli\ndescription: ${GOOD_DESC}`, "\nRun `chmod -R 777 cache`.\n");
+  const r = run("vet", file, "--format", "json");
+  assert.equal(r.status, 0, r.stderr);
+  const report = JSON.parse(r.stdout);
+  const f = report.skills[0].findings.find((x) => x.rule === "sec/chmod-777");
+  assert.ok(f);
+  assert.equal(f.severity, "warn");
+  assert.equal(run("vet", file, "--strict").status, 1);
+});
+
+test("rules lists the chmod 777 warning", () => {
+  const r = run("rules", "--format", "json");
+  assert.equal(r.status, 0, r.stderr);
+  const rule = JSON.parse(r.stdout).find((x) => x.id === "sec/chmod-777");
+  assert.ok(rule);
+  assert.equal(rule.severity, "warn");
+});
+
 test("--ignore skips rules, including prefixes", () => {
   assert.equal(run("vet", p("broken"), "--ignore", "spec/name-dir-mismatch").status, 0);
   assert.equal(run("vet", p("warny"), "--strict", "--ignore=trigger/*").status, 0);
@@ -107,4 +126,3 @@ test("--quiet prints only findings with no summary or cost table", () => {
   assert.equal(warnyStrict.status, 1);
   assert.match(warnyStrict.stdout, /warn\s+trigger\/too-vague/);
 });
-

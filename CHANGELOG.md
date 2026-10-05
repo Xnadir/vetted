@@ -6,6 +6,11 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- `vet` rule `sec/chmod-777` (warn): flags world-writable `chmod 777` commands,
+  including recursive variants, in skill bodies and scripts (#22).
+
 ## [0.1.3] - 2026-10-04
 
 ### Added
