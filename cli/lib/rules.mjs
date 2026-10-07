@@ -64,6 +64,12 @@ const INSTALL_FLAGS_WITH_VALUE = new Set(["-r", "-e", "-c", "--index-url", "--fe
 const INSTALL_CMD_RE = /\b(npm\s+i(?:nstall)?|pip3?\s+install|cargo\s+add)\b/;
 // A closing backtick ends an inline-code command, so prose after it is not parsed.
 const INSTALL_SHELL_OP_RE = /&&|\|\||[;|#`]/;
+const GIT_CONFIRMATION_BYPASS = /\b(?:without\s+(?:asking|(?:user\s+)?(?:confirmation|approval))|(?:never|do\s+not|don't|skip|avoid)\s+(?:ask(?:ing)?|confirm(?:ing)?)|no\s+(?:user\s+)?confirmation\s+(?:is\s+)?(?:needed|required))\b/i;
+// Quoted arguments may contain spaces or shell punctuation; a closing inline
+// backtick still ends the command. Recognize common global Git options too.
+const GIT_ARGUMENT = String.raw`(?:"[^"\n\x60]*"|'[^'\n\x60]*'|[^\s\x60"';&|#<>])+`;
+const GIT_PREFIX = String.raw`\bgit(?:[ \t]+(?:(?:-C|-c|--git-dir|--work-tree|--namespace)[ \t]+${GIT_ARGUMENT}|(?:--git-dir|--work-tree|--namespace|--config-env)=${GIT_ARGUMENT}|--(?:bare|no-pager|paginate|no-optional-locks|literal-pathspecs|no-replace-objects)))*[ \t]+`;
+const GIT_COMMAND_RE = new RegExp(`${GIT_PREFIX}(push|reset)\\b`, "g");
 
 // ---------------------------------------------------------------- security patterns
 
@@ -139,6 +145,14 @@ const SEC_PATTERNS = [
     severity: "warn",
     re: /\bchmod\s+(?:(?:-[A-Za-z]+|--[a-z-]+|--)\s+)*0?777(?=\s|[`"';&|]|$)/,
     msg: "makes files world-writable with chmod 777; use the narrowest permissions needed",
+  },
+  {
+    rule: "sec/git-force-push",
+    severity: "warn",
+    // Exact option tokens; stop at shell operators, inline-code boundaries,
+    // or -- (end of options). --force-with-lease alone is not unconditional force.
+    re: new RegExp(`${GIT_PREFIX}(?:push(?:[ \\t]+(?!--(?:[ \\t]|$))${GIT_ARGUMENT})*[ \\t]+(?:--force|-f)|reset(?:[ \\t]+(?!--(?:[ \\t]|$))${GIT_ARGUMENT})*[ \\t]+--hard)(?=[\\s\\x60"';&|]|$)`),
+    msg: "can overwrite remote history or discard local changes; require user confirmation first",
   },
 ];
 
@@ -386,13 +400,16 @@ export function vetSkill(skillFile) {
         const col = m.index - (content.lastIndexOf("\n", m.index - 1) + 1);
         if (p.rule === "sec/prompt-injection" && isQuotedMention(text, col)) {
           push(p.rule, "info", `quotes a prompt-injection phrase, apparently as an example: \`${snippet}\``, line);
-        } else if (isMarkdown && isNegatedOrCautionary(text, col)) {
+        } else if (p.rule === "sec/git-force-push" && hasGitConfirmation(lines, line - 1, col)) {
+          push(p.rule, "info", `(requires user confirmation first) ${p.msg}: \`${snippet}\``, line);
+        } else if (isMarkdown && isNegatedOrCautionary(text, col) &&
+          !(p.rule === "sec/git-force-push" && GIT_CONFIRMATION_BYPASS.test(text.slice(0, col)))) {
           push(p.rule, "info", `(negated or cautionary) ${p.msg}: \`${snippet}\``, line);
         } else if (p.severity === "warn" && !isMarkdown && isCodeComment(text)) {
           push(p.rule, "info", `(in a code comment) ${p.msg}: \`${snippet}\``, line);
         } else if (p.severity === "warn" && isTestFile(rel)) {
           push(p.rule, "info", `(in a test file) ${p.msg}: \`${snippet}\``, line);
-        } else if (p.severity === "warn" && isMarkdown && (isDefensive(text) || insideQuotes(text, col))) {
+        } else if (p.severity === "warn" && isMarkdown && ((p.rule !== "sec/git-force-push" && isDefensive(text)) || insideQuotes(text, col))) {
           push(p.rule, "info", `(quoted or framed as something to block) ${p.msg}: \`${snippet}\``, line);
         } else {
           push(p.rule, p.severity, `${p.msg}: \`${snippet}\``, line);
@@ -440,6 +457,54 @@ export function vetSkill(skillFile) {
     },
     findings: kept.sort(bySeverity),
   };
+}
+
+// Confirmation must explicitly precede this action, on its own line or one of
+// the preceding three lines. A heading or intervening Git action ends the scope.
+// Keep findings visible as info, like cautionary security examples elsewhere.
+function hasGitConfirmation(lines, index, col) {
+  const commands = [...lines[index].matchAll(GIT_COMMAND_RE)];
+  const current = commands.findIndex((m) => m.index === col);
+  const action = commands[current][1];
+  const previous = commands[current - 1];
+  const next = commands[current + 1];
+  // Shell separators outside quoted arguments delimit the local action. Only
+  // the first action can inherit confirmation text from preceding lines.
+  const separators = [...lines[index].matchAll(/"[^"\n]*"|'[^'\n]*'|[;&|#]/g)]
+    .filter((m) => /^[;&|#]$/.test(m[0])).map((m) => m.index);
+  const start = previous ? (separators.filter((p) => p > previous.index && p < col).at(-1) ?? col - 1) + 1 : 0;
+  const end = next ? (separators.find((p) => p > col && p < next.index) ?? next.index) : lines[index].length;
+  const local = lines[index].slice(start, end);
+  if (GIT_CONFIRMATION_BYPASS.test(local)) return false;
+  const target = `(?:git\\s+${action}\\b|(?:this|the)\\s+command\\b)`;
+  const beforeAction = new RegExp(`\\bbefore\\s+(?:running|executing|using)\\s+${target}`, "i");
+  const before = new RegExp(`\\bbefore\\s+(?:proceeding\\b|continuing\\b|(?:running|executing|using)\\s+${target})`, "i");
+  const beforeAsk = new RegExp(`^\\s*before\\s+(?:proceeding|continuing|(?:running|executing|using)\\s+${target}[^,;.!?]*)[,]?\\s*$`, "i");
+  const request = /\b(?:ask(?:\s+the)?\s+user\s+(?:for\s+(?:explicit\s+)?(?:confirmation|approval)|to\s+confirm)|(?:get|obtain|require|wait\s+for)\s+(?:explicit\s+)?user\s+(?:confirmation|approval)|confirm\s+with(?:\s+the)?\s+user)\b/i;
+  for (let i = index; i >= Math.max(0, index - 3); i--) {
+    if (i < index && previous) break;
+    const text = (i === index ? local : lines[i]).replace(/`/g, "").trim();
+    if (/^(?:#{1,6}\s|---\s*$)/.test(text)) break;
+    const priorCommands = i < index ? [...text.matchAll(GIT_COMMAND_RE)] : [];
+    if (priorCommands.length && !(priorCommands.length === 1 && beforeAction.test(text) && !/[;&|]/.test(text))) break;
+    // The scanned file controls this context: merely mentioning confirmation,
+    // or instructing the agent to skip it, does not establish a requirement.
+    // Option names such as --no-pager describe Git behavior, not whether user
+    // confirmation is required. Keep actual negation words in the prose.
+    const confirmationText = text.replace(/--[A-Za-z][A-Za-z-]*(?:=[^\s]*)?/g, "");
+    if (!/\b(?:no|not|never|don't|without|skip|avoid|optional|unnecessary)\b/i.test(confirmationText)) {
+      const ask = request.exec(text);
+      if (ask) {
+        const prefix = text.slice(0, ask.index);
+        const suffix = text.slice(ask.index + ask[0].length);
+        const followsAction = /\b(?:after|then)\b/i.test(prefix) || [...prefix.matchAll(GIT_COMMAND_RE)].length > 0;
+        if ((!followsAction && (/^\s+first(?:[.,;:!]|$)/i.test(suffix) || before.test(suffix))) || beforeAsk.test(prefix)) return true;
+      }
+      if (i === index && /\bonly\s+after\s+(?:explicit\s+)?user\s+(?:confirmation|approval)\b/i.test(text)) return true;
+    }
+    if (i < index && [...text.matchAll(GIT_COMMAND_RE)].length) break;
+  }
+  return false;
 }
 
 // True when the match sits inside quotes on its line, or the line frames it
