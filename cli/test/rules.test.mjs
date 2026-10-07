@@ -186,10 +186,39 @@ test("sec: chmod 777 warns for plain and recursive commands", () => {
 });
 
 test("sec: chmod 777 does not flag other modes or lookalikes", () => {
-  const commands = ["chmod 755 file", "chmod -R 644 dir", "chmod 7770 file", "chmod 777.txt", "mychmod 777 file", "chmod --reference=777 file"];
+  const commands = ["chmod 755 file", "chmod -R 644 dir", "chmod 7770 file", "chmod 777.txt", "mychmod 777 file", "chmod --reference=777 file", "chmod u+x file", "chmod g+w file", "chmod a+rx file", "chmod o-w file", "chmod o+w.txt", "chmod 777./file"];
   for (const [i, command] of commands.entries()) {
     const r = make(`chmod-miss-${i}`, good(), `\nRun \`${command}\`.\n`);
     assert.ok(!r.findings.some((f) => f.rule === "sec/chmod-777"), command);
+  }
+});
+
+for (const command of ["chmod a+rwx file", "chmod ugo+rwx file", "chmod o+w file", "chmod -R a+w dir", "chmod --recursive o+rw dir"]) {
+  test(`sec: symbolic world-write warns for ${command}`, () => {
+    const r = make("chmod-symbolic", good(), `\nRun \`${command}\`.\n`);
+    assert.ok(rules(r).includes("warn:sec/chmod-777"), command);
+  });
+}
+
+for (const command of ["chmod 777.", "chmod 0777.", "chmod -R 777.", "chmod o+w."]) {
+  test(`sec: sentence-ending mode warns for ${command}`, () => {
+    const r = make("chmod-sentence", good(), `\nThen run ${command}\n`);
+    assert.ok(rules(r).includes("warn:sec/chmod-777"), command);
+  });
+}
+
+test("sec: symbolic chmod reports script location and preserves security downgrades", () => {
+  const script = make("chmod-symbolic-script", good(), undefined, { "scripts/setup.sh": "#!/bin/sh\nchmod -R a+w cache\n" });
+  const f = script.findings.find((x) => x.rule === "sec/chmod-777");
+  assert.ok(f);
+  assert.equal(f.severity, "warn");
+  assert.equal(f.file, "scripts/setup.sh");
+  assert.equal(f.line, 2);
+
+  for (const body of ["\nNever run `chmod o+w file`.\n", "\n<!-- vet-ignore: sec/chmod-777 -->\nRun `chmod a+rwx file`.\n"]) {
+    const r = make("chmod-symbolic-info", good(), body);
+    assert.ok(rules(r).includes("info:sec/chmod-777"));
+    assert.ok(!rules(r).includes("warn:sec/chmod-777"));
   }
 });
 

@@ -74,7 +74,7 @@ const RULES = [
   ["sec/destructive", "warn", "Can wipe a home directory or disk"],
   ["sec/persistence", "warn", "Installs shell-profile, cron, launch-agent, or hook persistence"],
   ["sec/sudo", "warn", "Uses sudo to escalate privileges"],
-  ["sec/chmod-777", "warn", "Makes files world-writable with chmod 777"],
+  ["sec/chmod-777", "warn", "Makes files world-writable with numeric or symbolic chmod modes"],
   ["sec/hidden-instructions", "warn", "Instructions inside HTML comments"],
   ["sec/broad-allowed-tools", "warn", "Pre-approves an unrestricted shell"],
   ["sec/binary", "warn", "Ships compiled executables"],
