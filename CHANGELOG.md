@@ -14,6 +14,8 @@ All notable changes to this project are documented here. The format follows
 ### Added
 
 - Rule reference at `docs/rules.md`, with severities and examples, linked from the README (#27).
+- Plain factual-question precision eval that checks for a brief, correct answer
+  without loading a workflow skill (#30).
 - `vet` rule `sec/chmod-777` (warn): flags world-writable `chmod 777` commands,
   including recursive variants, in skill bodies and scripts. Thanks @xyi74976-del (#22).
 - `vet` rule `spec/license-missing` (info): reports absent or empty license declarations without
