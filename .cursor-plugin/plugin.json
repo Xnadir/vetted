@@ -2,12 +2,12 @@
   "name": "vetted",
   "displayName": "Vetted",
   "description": "Agent skills that prove they work: every skill ships with a with/without eval and a measured delta against a no-skill baseline.",
-  "version": "0.1.3",
+  "version": "0.2.0",
   "author": {
-    "name": "nadirali1350"
+    "name": "Nadir Ali"
   },
-  "homepage": "https://github.com/nadirali1350/vetted",
-  "repository": "https://github.com/nadirali1350/vetted",
+  "homepage": "https://github.com/Xnadir/vetted",
+  "repository": "https://github.com/Xnadir/vetted",
   "license": "MIT",
   "keywords": ["skills", "evals", "verification", "code-review", "debugging"],
   "skills": "./skills/"

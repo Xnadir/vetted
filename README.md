@@ -6,7 +6,7 @@ Every skill ships with an eval that runs <i>with</i> and <i>without</i> it on cu
 If it doesn't beat the baseline, it doesn't ship.</p>
 
 <p align="center">
-  <a href="https://github.com/nadirali1350/vetted/actions/workflows/ci.yml"><img src="https://github.com/nadirali1350/vetted/actions/workflows/ci.yml/badge.svg" alt="CI"/></a>
+  <a href="https://github.com/Xnadir/vetted/actions/workflows/ci.yml"><img src="https://github.com/Xnadir/vetted/actions/workflows/ci.yml/badge.svg" alt="CI"/></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-22c55e" alt="MIT"/></a>
   <img src="https://img.shields.io/badge/dependencies-0-0891b2" alt="Zero dependencies"/>
   <img src="https://img.shields.io/badge/works%20with-Claude%20Code%20%C2%B7%20Codex%20%C2%B7%20Cursor%20%C2%B7%20Gemini%20CLI%20%C2%B7%20OpenCode-7c3aed" alt="Works with"/>
@@ -37,11 +37,11 @@ This repo is two things:
 
 ```bash
 # Claude Code
-/plugin marketplace add nadirali1350/vetted
+/plugin marketplace add Xnadir/vetted
 /plugin install vetted@vetted
 
 # Any agent that reads SKILL.md (Claude Code, Codex, Cursor, Gemini CLI, OpenCode, Copilot...)
-npx skills add nadirali1350/vetted
+npx skills add Xnadir/vetted
 ```
 
 Or copy a folder from [`skills/`](skills/) into your agent's skills directory
@@ -184,7 +184,7 @@ request and as a table in the job summary:
 
 ```yaml
 - uses: actions/checkout@v4
-- uses: nadirali1350/vetted@v0
+- uses: Xnadir/vetted@v0
   with:
     path: skills        # default: .
     strict: "true"      # fail on warnings too
@@ -232,7 +232,7 @@ The most useful contributions, in order:
 3. **A `vet` rule**, or a false positive you hit on a real skill.
 
 **New here?** Pick one of the
-[good first issues](https://github.com/nadirali1350/vetted/labels/good%20first%20issue). Most are a
+[good first issues](https://github.com/Xnadir/vetted/labels/good%20first%20issue). Most are a
 single rule or file with a test to copy from. Comment to claim one, and PRs get reviewed within a day.
 It's also a fit for Hacktoberfest: those issues carry the `hacktoberfest` label.
 

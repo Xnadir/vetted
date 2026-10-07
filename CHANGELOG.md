@@ -6,6 +6,15 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-10-07
+
+### Changed
+
+- **The repository moved to `Xnadir/vetted`** after a GitHub username change. Web links, `git clone`,
+  `/plugin marketplace add`, and `npx skills add` still work through GitHub's redirect, but
+  **GitHub Actions do not follow redirects**: change `uses: nadirali1350/vetted@v0` to
+  `uses: Xnadir/vetted@v0`.
+
 ### Fixed
 
 - `sec/chmod-777` also flags symbolic modes that grant write to everyone (`a+rwx`,

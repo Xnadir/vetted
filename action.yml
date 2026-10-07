@@ -1,6 +1,6 @@
 name: "vetted: check agent skills"
 description: "Checks SKILL.md files for spec errors, weak triggers, context cost, outdated prompting, and security red flags."
-author: "nadirali1350"
+author: "Nadir Ali"
 branding:
   icon: "shield"
   color: "green"

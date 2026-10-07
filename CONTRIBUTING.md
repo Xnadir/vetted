@@ -18,7 +18,7 @@ judged on what those cases show.
 ## Setup
 
 ```bash
-git clone https://github.com/nadirali1350/vetted
+git clone https://github.com/Xnadir/vetted
 cd vetted
 npm test                     # vet's unit tests, Node 18+, no install step
 node cli/vet.mjs vet skills  # check the skills
