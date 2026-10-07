@@ -6,6 +6,14 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- **Registry of third-party skills** (`registry/`): popular skills from other repositories, tested with
+  the same with/without evals and pinned to a commit. `scripts/vet-external.mjs` fetches the skill,
+  scans it with skill-vet (security errors stop the run), runs it alone in a temporary plugin, and saves
+  the result; `scripts/registry-table.mjs` rebuilds the table. The first entry is
+  `obra/superpowers/verification-before-completion`, using the same cases as `prove-it`.
+
 ## [0.2.0] - 2026-10-07
 
 ### Changed

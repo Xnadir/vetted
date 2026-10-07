@@ -160,6 +160,13 @@ smaller model benefits more (`handoff` and `prove-it` help Haiku 4.5 only). `roo
 loaded on either model, yet scored +13 on Sonnet and −11 on Haiku, so its effect comes from its
 description in the skill list alone and isn't reliable yet; it stays on probation.
 
+### Other people's skills
+
+The [**registry**](registry/README.md) runs the same with/without test on popular skills from other
+repositories, pinned to a commit. Anyone with Claude Code can add one: write two cases and run
+`node scripts/vet-external.mjs registry/<owner>/<repo>/<skill> --by <you>`. Your name goes next to the
+result.
+
 ## `vet`: check any skill before you trust it
 
 `vet` reads every `SKILL.md` under the paths you give it, plus every script and reference file

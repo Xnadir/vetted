@@ -12,6 +12,7 @@ judged on what those cases show.
 | Add an eval case | Add a directory under `evals/<skill>/`. See [Writing eval cases](#writing-eval-cases). | Small |
 | Report a `vet` false positive or miss | Open an issue with the smallest skill that shows it. | Small |
 | Add or improve a `vet` rule | Edit `cli/lib/rules.mjs` and add a test in `cli/test/rules.test.mjs`. | Medium |
+| Test someone else's skill | Add an entry to the [registry](registry/README.md): a pointer to the skill, two eval cases, and the result of one command. Needs Claude Code. | Medium |
 | Improve a skill's wording | Change `skills/<name>/SKILL.md` and show the eval result before and after. | Medium |
 | Propose a new skill | Open an issue first, then a PR with the skill and at least two eval cases. | Large |
 

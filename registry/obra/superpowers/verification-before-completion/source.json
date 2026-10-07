@@ -1,0 +1,7 @@
+{
+  "repo": "https://github.com/obra/superpowers",
+  "ref": "8ca22dba9a94f28898bbce59f2537ff4d87c747d",
+  "path": "skills/verification-before-completion",
+  "license": "MIT",
+  "note": "Uses the same two cases as vetted's own prove-it skill, which has the same goal, so the results compare directly."
+}
