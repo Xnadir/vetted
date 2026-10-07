@@ -200,6 +200,21 @@ for (const command of ["chmod a+rwx file", "chmod ugo+rwx file", "chmod o+w file
   });
 }
 
+for (const command of ["chmod a=rwx file", "chmod o=rw file", "chmod u+x,o+w file", "chmod u=rwx,go=rwx dir"]) {
+  test(`sec: '=' and comma-list world-write warns for ${command}`, () => {
+    const r = make("chmod-equals", good(), `\nRun \`${command}\`.\n`);
+    assert.ok(rules(r).includes("warn:sec/chmod-777"), command);
+  });
+}
+
+test("sec: '=' and comma-list modes without world-write are fine", () => {
+  const commands = ["chmod a=rx f", "chmod u+x,g+w f", "chmod o=r f"];
+  for (const [i, command] of commands.entries()) {
+    const r = make(`chmod-equals-miss-${i}`, good(), `\nRun \`${command}\`.\n`);
+    assert.ok(!r.findings.some((f) => f.rule === "sec/chmod-777"), command);
+  }
+});
+
 for (const command of ["chmod 777.", "chmod 0777.", "chmod -R 777.", "chmod o+w."]) {
   test(`sec: sentence-ending mode warns for ${command}`, () => {
     const r = make("chmod-sentence", good(), `\nThen run ${command}\n`);

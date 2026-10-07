@@ -137,7 +137,7 @@ const SEC_PATTERNS = [
   {
     rule: "sec/chmod-777",
     severity: "warn",
-    re: /\bchmod\s+(?:(?:-[A-Za-z]+|--[a-z-]+|--)\s+)*(?:0?777|[ugoa]*[ao][ugoa]*\+[rwxXst]*w[rwxXst]*)(?=\s|[`"';&|]|\.(?=\s|$)|$)/,
+    re: /\bchmod\s+(?:(?:-[A-Za-z]+|--[a-z-]+|--)\s+)*(?:0?777|(?:[ugoa]*[-+=][rwxXst]*,)*[ugoa]*[ao][ugoa]*[+=][rwxXst]*w[rwxXst]*(?:,[ugoa]*[-+=][rwxXst]*)*)(?=\s|[`"';&|]|\.(?=\s|$)|$)/,
     msg: "makes files world-writable with chmod; use the narrowest permissions needed",
   },
 ];

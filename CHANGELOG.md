@@ -14,6 +14,11 @@ All notable changes to this project are documented here. The format follows
   the result; `scripts/registry-table.mjs` rebuilds the table. The first entry is
   `obra/superpowers/verification-before-completion`, using the same cases as `prove-it`.
 
+### Fixed
+
+- **`sec/chmod-777` catches `=` modes and comma lists**: `chmod a=rwx`, `chmod o=rw`, `chmod u+x,o+w`,
+  and `chmod u=rwx,go=rwx` now warn, while lists that grant no world-write (`chmod u+x,g+w`) stay quiet.
+
 ## [0.2.0] - 2026-10-07
 
 ### Changed
