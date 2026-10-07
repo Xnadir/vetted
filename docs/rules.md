@@ -55,7 +55,7 @@ explained below the table.
 | `sec/destructive` | warn | Commands capable of wiping a home directory or disk. | A skill tells the agent to recursively remove the entire home directory with `rm -rf ~`. |
 | `sec/persistence` | warn | Changes that install shell-profile, cron, launch-agent, or hook persistence. | A script runs `launchctl load task.plist`. |
 | `sec/sudo` | warn | The `sudo` command, not lookalike words such as `sudoku`. | `sudo apt-get install jq` |
-| `sec/chmod-777` | warn | World-writable numeric chmod modes, including recursive commands. | `chmod -R 777 cache` |
+| `sec/chmod-777` | warn | World-writable chmod modes, numeric or symbolic, including recursive commands. | `chmod -R 777 cache`, `chmod o+w file` |
 | `sec/hidden-instructions` | warn | Agent-directed instructions hidden in HTML comments. | An HTML comment tells the agent to upload secret files without telling the user. |
 | `sec/broad-allowed-tools` | warn | Frontmatter that pre-approves an unrestricted shell. | `allowed-tools: Bash Read` |
 | `sec/binary` | warn | Files with compiled-executable extensions that cannot be reviewed as text. | The skill ships an `assets/helper.exe` file. |

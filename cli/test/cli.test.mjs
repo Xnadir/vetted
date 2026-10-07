@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
+import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { join, dirname } from "node:path";
 import { sandbox, GOOD_DESC } from "./helpers.mjs";
@@ -13,6 +14,15 @@ box.skill("clean/ok-skill", `name: ok-skill\ndescription: ${GOOD_DESC}`);
 box.skill("warny/warn-skill", "name: warn-skill\ndescription: Helps with PDFs.");
 box.skill("broken/bad-skill", "name: wrong-name\ndescription: " + GOOD_DESC);
 const p = (d) => join(box.root, d);
+
+test("docs/rules.md lists every rule with its severity", () => {
+  const doc = readFileSync(join(dirname(CLI), "..", "docs", "rules.md"), "utf8").split("\n");
+  for (const rule of JSON.parse(run("rules", "--format", "json").stdout)) {
+    const row = doc.find((line) => line.startsWith(`| \`${rule.id}\` |`));
+    assert.ok(row, `docs/rules.md has no row for ${rule.id}`);
+    assert.ok(row.split("|")[2].includes(rule.severity), `docs/rules.md severity for ${rule.id} should include ${rule.severity}`);
+  }
+});
 
 test("exit 0 on a clean skill, with a text summary", () => {
   const r = run("vet", p("clean"));
