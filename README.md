@@ -189,7 +189,9 @@ request and as a table in the job summary:
     strict: "true"      # fail on warnings too
 ```
 
-Other formats: `--format json` (stable schema), `--format markdown`, `--format github`.
+Other formats: `--format json` (stable schema), `--format markdown`, `--format github`,
+`--format sarif` (SARIF 2.1.0 for code-scanning tools). Save a SARIF report with
+`npx @menadirali/skill-vet vet ./skills --format sarif > results.sarif`.
 Flags: `--quiet` (print only findings, no summary line or cost table), `--strict` (fail on warnings too), `--verbose` (show info-level findings), `--ignore` (skip rules).
 Exit codes: `0` clean, `1` findings, `2` usage error.
 
