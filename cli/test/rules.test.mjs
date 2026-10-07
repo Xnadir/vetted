@@ -219,6 +219,151 @@ test("sec: scoped allowed-tools are fine", () => {
   assert.ok(!rules(make("scoped", good("\nallowed-tools: Bash(git:*) Read"))).includes("warn:sec/broad-allowed-tools"));
 });
 
+test("sec: git force pushes and hard resets warn without confirmation", () => {
+  const commands = [
+    "git push --force", "git push origin main --force", "git push -f origin main",
+    "git push --force-with-lease --force origin main", "git reset --hard", "git reset HEAD~1 --hard",
+  ];
+  for (const [i, command] of commands.entries()) {
+    const r = make(`git-risk-${i}`, good(), `\nRun \`${command}\` without asking.\n`);
+    assert.ok(rules(r).includes("warn:sec/git-force-push"), command);
+  }
+});
+
+test("sec: git risk ignores safe operations and option lookalikes", () => {
+  const commands = [
+    "git push origin main", "git reset --soft HEAD~1", "git reset --mixed HEAD~1",
+    "git push --force-with-lease", "git push --force-with-lease=main:abc123",
+    "git push --force-if-includes", "git push --forceful", "git reset --harder",
+    "mygit push --force", "git push -- --force", "git push; echo --force",
+    "git push origin main # --force", "git reset HEAD # --hard",
+    "git push origin main` and describe `--force", "git reset HEAD; echo --hard",
+  ];
+  for (const [i, command] of commands.entries()) {
+    const r = make(`git-safe-${i}`, good(), `\nRun \`${command}\`.\n`);
+    assert.ok(!r.findings.some((f) => f.rule === "sec/git-force-push"), command);
+  }
+});
+
+test("sec: explicit confirmation first keeps git risk visible as info", () => {
+  const bodies = [
+    "Ask the user for confirmation first.\nRun `git push --force`.",
+    "Get explicit user approval before proceeding.\nRun `git reset --hard`.",
+    "Run `git push --force` only after user confirmation.",
+    "Before running `git reset --hard`, ask the user for confirmation.",
+    "Ask the user for confirmation first, then run `git push --force`.",
+    "Run `git --no-pager push --force` only after user confirmation.",
+    "Confirm with the user first.\n\n```sh\ngit push --force\n```",
+  ];
+  for (const [i, body] of bodies.entries()) {
+    const r = make(`git-confirmed-${i}`, good(), `\n${body}\n`);
+    const f = r.findings.find((x) => x.rule === "sec/git-force-push");
+    assert.ok(f, body);
+    assert.equal(f.severity, "info", body);
+    assert.match(f.message, /confirmation/i);
+  }
+});
+
+test("sec: git confirmation must be nearby and govern the risky action", () => {
+  const bodies = [
+    "Ask the user for confirmation first.\n\n\n\nRun `git push --force`.",
+    "Run `git push --force`.\nAsk the user for confirmation first.",
+    "Ask the user for confirmation first.\n## Another task\nRun `git reset --hard`.",
+    "Ask the user for confirmation before editing the config.\nRun `git push --force`.",
+    "Ask the user for confirmation before running git reset.\nRun `git push --force`.",
+    "No user confirmation is required before proceeding.\nRun `git reset --hard`.",
+    "Do not ask the user for confirmation first.\nRun `git push --force`.",
+    "Run `git push --force` without user confirmation.",
+    "Run `git push --force`, then ask the user for confirmation.",
+    "Run `git push --force`, then ask the user for confirmation first.",
+    "After running git push, ask the user for confirmation first.\nRun `git push --force`.",
+    "Before proceeding, run `git push --force`; then ask the user for confirmation.",
+    "Ask the user for confirmation for editing the config first.\nRun `git push --force`.",
+    "Ask the user for confirmation first.\nRun `git reset --soft HEAD~1`.\nRun `git push --force`.",
+    "Do not ask the user for confirmation first; run `git push --force`.",
+    "Never ask before running `git push --force`.",
+    "Do not ask for confirmation before running `git reset --hard`.",
+    "Ask the user for confirmation first.\nRun `git push --force` without asking.",
+  ];
+  for (const [i, body] of bodies.entries()) {
+    const r = make(`git-unconfirmed-${i}`, good(), `\n${body}\n`);
+    assert.ok(rules(r).includes("warn:sec/git-force-push"), body);
+  }
+});
+
+test("sec: git risk reports each command's file and line", () => {
+  const r = make("git-script", good(), undefined, {
+    "scripts/update.sh": "#!/bin/sh\ngit push --force origin main\ngit reset --hard HEAD~1\n",
+  });
+  const findings = r.findings.filter((f) => f.rule === "sec/git-force-push");
+  assert.deepEqual(findings.map(({ severity, file, line }) => ({ severity, file, line })), [
+    { severity: "warn", file: "scripts/update.sh", line: 2 },
+    { severity: "warn", file: "scripts/update.sh", line: 3 },
+  ]);
+});
+
+test("sec: git risk recognizes quoted arguments and common global options", () => {
+  const commands = [
+    'git push "origin" main --force', "git push 'origin' main -f",
+    'git reset "HEAD~1" --hard', 'git push "origin;backup" main --force',
+    "git -C repo push --force", 'git -C "my repo" reset --hard',
+    'git -c "push.default=current" push --force', "git --git-dir=repo/.git push -f",
+    'git --work-tree "my repo" reset --hard', "git --no-pager -C repo reset --hard",
+  ];
+  for (const [i, command] of commands.entries()) {
+    const r = make(`git-arguments-${i}`, good(), `\nRun \`${command}\`.\n`);
+    assert.ok(rules(r).includes("warn:sec/git-force-push"), command);
+  }
+});
+
+test("sec: Git confirmation belongs to the matched action on a shared line", () => {
+  const cases = [
+    ["Run `git reset --hard; git push --force` only after user confirmation.", ["warn", "info"]],
+    ["Ask the user for confirmation before running git reset --soft; then run `git push --force`.", ["warn"]],
+    ["Ask the user for confirmation first; run `git reset --soft`; run `git push --force`.", ["warn"]],
+    ["Ask the user for confirmation first; run `git reset --hard`; run `git push --force`.", ["info", "warn"]],
+    ["Run `git reset --hard` without asking; run `git push --force` only after user confirmation.", ["warn", "info"]],
+    ["Ask the user for confirmation first.\nRun `git -C repo reset --soft`; run `git -C repo push --force`.", ["warn"]],
+    ["Ask the user for confirmation first; run `git reset --soft`.\nRun `git push --force`.", ["warn"]],
+    ["Run `git -C repo push --force`, ask the user for confirmation first.", ["warn"]],
+    ['Run `git -C "my repo" reset --hard; git --no-pager -C "my repo" push --force` only after user confirmation.', ["warn", "info"]],
+    ["Run `git --no-pager push --force` without user confirmation.", ["warn"]],
+    ["No user confirmation is required.\nRun `git --no-pager push --force`.", ["warn"]],
+  ];
+  for (const [i, [body, want]] of cases.entries()) {
+    const r = make(`git-action-scope-${i}`, good(), `\n${body}\n`);
+    // Findings are sorted by severity; assert each action's severity instead
+    // of depending on the report order when one is info and the other warns.
+    const found = r.findings.filter((f) => f.rule === "sec/git-force-push");
+    const got = ["reset", "push"].flatMap((action) => found.filter((f) => new RegExp(`\\b${action}\\b`).test(f.message)).map((f) => f.severity));
+    assert.deepEqual(got, want, body);
+  }
+});
+
+test("sec: quoted Git arguments and global options preserve command boundaries", () => {
+  const commands = [
+    'git push "origin" main; echo --force', 'git reset "HEAD~1" # --hard',
+    'git -C "my repo" push --force-with-lease', 'git --work-tree "my repo" reset --soft',
+    'git -C repo push -- --force', 'git -C repo push origin` then mention `--force',
+    'git -c "alias.force=push --force" status',
+  ];
+  for (const [i, command] of commands.entries()) {
+    const r = make(`git-quoted-safe-${i}`, good(), `\nRun \`${command}\`.\n`);
+    assert.ok(!r.findings.some((f) => f.rule === "sec/git-force-push"), command);
+  }
+});
+
+test("sec: git cautionary examples and suppressions remain visible", () => {
+  for (const [i, body] of [
+    "Never run `git reset --hard`.",
+    "<!-- vet-ignore: sec/git-force-push -->\nRun `git push --force`.",
+  ].entries()) {
+    const r = make(`git-mention-${i}`, good(), `\n${body}\n`);
+    assert.ok(rules(r).includes("info:sec/git-force-push"), body);
+    assert.ok(!rules(r).includes("warn:sec/git-force-push"), body);
+  }
+});
+
 test("cross-skill: name collisions only within one skill root", () => {
   const a = vetSkill(box.skill("root1/alpha", `name: same\ndescription: ${GOOD_DESC}`));
   const b = vetSkill(box.skill("root1/beta", `name: same\ndescription: Something else entirely. Use when needed for other work.`));

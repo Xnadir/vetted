@@ -75,6 +75,7 @@ const RULES = [
   ["sec/persistence", "warn", "Installs shell-profile, cron, launch-agent, or hook persistence"],
   ["sec/sudo", "warn", "Uses sudo to escalate privileges"],
   ["sec/chmod-777", "warn", "Makes files world-writable with chmod 777"],
+  ["sec/git-force-push", "warn", "Force-pushes or hard-resets Git without requiring user confirmation first"],
   ["sec/hidden-instructions", "warn", "Instructions inside HTML comments"],
   ["sec/broad-allowed-tools", "warn", "Pre-approves an unrestricted shell"],
   ["sec/binary", "warn", "Ships compiled executables"],

@@ -56,6 +56,28 @@ test("rules lists the chmod 777 warning", () => {
   assert.equal(rule.severity, "warn");
 });
 
+test("git risk fails strict scans until confirmation is required first", () => {
+  const local = sandbox();
+  const risky = local.skill("git-risk", `name: git-risk\ndescription: ${GOOD_DESC}`, "\nRun `git push --force`.\n");
+  const confirmed = local.skill("git-confirmed", `name: git-confirmed\ndescription: ${GOOD_DESC}`,
+    "\nAsk the user for confirmation first.\nRun `git reset --hard`.\n");
+  assert.equal(run("vet", risky).status, 0);
+  assert.equal(run("vet", risky, "--strict").status, 1);
+  const r = run("vet", confirmed, "--strict", "--format", "json");
+  assert.equal(r.status, 0, r.stderr);
+  const finding = JSON.parse(r.stdout).skills[0].findings.find((f) => f.rule === "sec/git-force-push");
+  assert.ok(finding);
+  assert.equal(finding.severity, "info");
+});
+
+test("rules lists the git force-push warning", () => {
+  const r = run("rules", "--format", "json");
+  assert.equal(r.status, 0, r.stderr);
+  const rule = JSON.parse(r.stdout).find((x) => x.id === "sec/git-force-push");
+  assert.ok(rule);
+  assert.equal(rule.severity, "warn");
+});
+
 test("--ignore skips rules, including prefixes", () => {
   assert.equal(run("vet", p("broken"), "--ignore", "spec/name-dir-mismatch").status, 0);
   assert.equal(run("vet", p("warny"), "--strict", "--ignore=trigger/*").status, 0);
