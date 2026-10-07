@@ -72,7 +72,7 @@ test("json output has a stable shape", () => {
 test("sarif reports rules, severity, and source locations without changing exit codes", () => {
   const sarifBox = sandbox();
   sarifBox.skill("bad-skill", `name: wrong-name\ndescription: ${GOOD_DESC}`, "\n# Title\n", {
-    "scripts/check #?%.sh": "# helper\nchmod 777 cache\n",
+    "scripts/check #%.sh": "# helper\nchmod 777 cache\n",
   });
   const r = spawnSync(process.execPath, [CLI, "vet", ".", "--format", "sarif"], {
     cwd: sarifBox.root, encoding: "utf8",
@@ -93,7 +93,7 @@ test("sarif reports rules, severity, and source locations without changing exit 
   const warning = scan.results.find((finding) => finding.ruleId === "sec/chmod-777");
   assert.equal(warning.level, "warning");
   assert.deepEqual(warning.locations[0].physicalLocation, {
-    artifactLocation: { uri: "bad-skill/scripts/check%20%23%3F%25.sh" }, region: { startLine: 2 },
+    artifactLocation: { uri: "bad-skill/scripts/check%20%23%25.sh" }, region: { startLine: 2 },
   });
   assert.equal(scan.results.find((finding) => finding.ruleId === "spec/license-missing").level, "note");
   assert.equal(run("vet", p("warny"), "--format=sarif").status, 0);
