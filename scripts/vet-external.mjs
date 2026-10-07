@@ -112,8 +112,8 @@ const args = ["plugin", "eval", plugin, "--trust-plugin", "--no-publish", "--thr
   ...(gated.length ? ["--allow-tools", ...gated] : []), ...(scaffold ? ["--scaffold"] : []),
   ...(maxCost ? ["--max-cost-usd", maxCost] : [])];
 console.error(`running ${caseDirs.length} case(s) × ${runs} runs × 2 arms on ${model}…`);
-const quote = (a) => (process.platform === "win32" && /[\s"]/.test(a) ? `"${a.replace(/"/g, '\\"')}"` : a);
-spawnSync("claude", process.platform === "win32" ? args.map(quote) : args, { stdio: "inherit", shell: process.platform === "win32" });
+const ran = spawnSync("claude", args, { stdio: "inherit" });
+if (ran.error) fail(`could not start claude: ${ran.error.message}`);
 if (!existsSync(out)) fail("claude plugin eval produced no result file");
 
 // ---- save the compact result

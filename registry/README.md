@@ -8,9 +8,9 @@ and results.
 ## Results
 
 <!-- registry:start -->
-| Skill | with → without (Δ) | Skill loaded | Verdict | Vetted by |
-| --- | ---: | ---: | --- | --- |
-| [`verification-before-completion`](https://github.com/obra/superpowers/tree/8ca22dba9a94f28898bbce59f2537ff4d87c747d/skills/verification-before-completion) · obra/superpowers | – | – | ⏳ not run yet | – |
+| Skill | Sonnet 5.5<br/>with → without (Δ) | Haiku 4.5<br/>with → without (Δ) | Skill loaded | Verdict | Vetted by |
+| --- | ---: | ---: | ---: | --- | --- |
+| [`verification-before-completion`](https://github.com/obra/superpowers/tree/8ca22dba9a94f28898bbce59f2537ff4d87c747d/skills/verification-before-completion) · obra/superpowers | 100% → 100% (**0**) | 50% → 50% (**0**) | 4/6 · 0/3 | ✂️ no measurable effect | [@Xnadir](https://github.com/Xnadir) |
 <!-- registry:end -->
 
 Δ is the score with the skill minus the score without it, in points. "Skill loaded" is how often the
