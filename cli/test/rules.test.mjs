@@ -288,6 +288,171 @@ test("sec: suspicious-install stops at the closing backtick of inline code", () 
   assert.ok(!rules(r).includes("warn:sec/suspicious-install"), "pytest must not be flagged as a typosquat of itself");
 });
 
+test("sec: unpinned-install warns for bare npm global, pip, and cargo installs", () => {
+  const commands = [
+    "npm install -g serve", "npm i --global @scope/tool", "npm install serve -g",
+    "pip install requests", "pip3 install package.name[extra]", "cargo install ripgrep",
+  ];
+  for (const [i, command] of commands.entries()) {
+    const r = make(`unpinned-hit-${i}`, good(), `\nRun \`${command}\`.\n`);
+    assert.ok(rules(r).includes("warn:sec/unpinned-install"), command);
+  }
+});
+
+test("sec: unpinned-install accepts exact versions for each package manager", () => {
+  const commands = [
+    "npm install -g serve@14.2.4", "npm i --global @scope/tool@1.2.3",
+    "npm install -g serve@1.2.3-beta.1", "pip install requests==2.32.3",
+    "pip3 install 'requests[security]==2.32.3'", 'pip install "package.name===1.0-custom"',
+    "cargo install ripgrep --version 14.1.1", "cargo install --version=14.1.1 ripgrep",
+    'cargo install ripgrep --version="14.1.1"', 'pip install requests=="2.32.3"',
+    'npm install -g serve@"14.2.4"',
+  ];
+  for (const [i, command] of commands.entries()) {
+    const r = make(`unpinned-pin-${i}`, good(), `\nRun \`${command}\`.\n`);
+    assert.ok(!r.findings.some((f) => f.rule === "sec/unpinned-install"), command);
+  }
+});
+
+test("sec: unpinned-install warns for tags, ranges, and wildcard versions", () => {
+  const commands = [
+    "npm install -g serve@latest", "npm install -g @scope/tool@next",
+    "npm install -g serve@^14.2.4", "npm install -g serve@14.*", "npm install -g serve@14",
+    "pip install 'requests>=2.32.3'", "pip install 'requests~=2.32'",
+    "pip install requests==2.*", "pip install requests!=2.32.3",
+    "cargo install ripgrep --version '^14.1.1'", "cargo install ripgrep --version=14.*",
+  ];
+  for (const [i, command] of commands.entries()) {
+    const r = make(`unpinned-range-${i}`, good(), `\nRun \`${command}\`.\n`);
+    assert.ok(rules(r).includes("warn:sec/unpinned-install"), command);
+  }
+});
+
+test("sec: unpinned-install skips local installs, requirement files, and option values", () => {
+  const commands = [
+    "npm install serve", "npm install -g", "npm install -g ./tool",
+    "npm install -g --prefix /tmp/tools serve@14.2.4", "npm install -g --registry https://example.com serve@14.2.4",
+    "npm install -g tool.tgz", "pip install package.whl", "pip install package.tar.gz",
+    "pip install -r requirements.txt", "pip install --requirement requirements.txt",
+    "pip install -rrequirements.txt", "pip install -e ./project", "pip install ./project",
+    "pip install --index-url https://example.com/simple requests==2.32.3",
+    "pip install -f wheels requests==2.32.3", "pip install --find-links wheels requests==2.32.3",
+    "cargo install --path ./tool", "cargo install --git https://example.com/tool.git",
+    "cargo install --list", "mynpm install -g serve", "mypip install requests",
+  ];
+  for (const [i, command] of commands.entries()) {
+    const r = make(`unpinned-skip-${i}`, good(), `\nRun \`${command}\`.\n`);
+    assert.ok(!r.findings.some((f) => f.rule === "sec/unpinned-install"), command);
+  }
+});
+
+test("sec: unpinned-install reports only unpinned packages in mixed commands", () => {
+  const r = make("unpinned-mixed", good(), "\nRun `npm install -g serve@14.2.4 @scope/tool`.\n");
+  const found = r.findings.filter((f) => f.rule === "sec/unpinned-install");
+  assert.equal(found.length, 1);
+  assert.match(found[0].message, /@scope\/tool/);
+  assert.match(found[0].message, /pin/i);
+});
+
+test("sec: unpinned-install stops at shell and inline-code boundaries", () => {
+  const commands = [
+    "pip install requests==2.32.3 && python run.py", "npm install -g serve@14.2.4; echo tool",
+    "pip install requests==2.32.3 | tee log", "cargo install ripgrep --version 14.1.1 # tool",
+    "pip install requests==2.32.3 > log", "npm install -g serve@14.2.4 & echo tool",
+  ];
+  for (const [i, command] of commands.entries()) {
+    const r = make(`unpinned-boundary-${i}`, good(), `\nRun \`${command}\` then check the tool.\n`);
+    assert.ok(!r.findings.some((f) => f.rule === "sec/unpinned-install"), command);
+  }
+  const r = make("unpinned-next-command", good(), "\nRun `cargo install ripgrep && echo --version 14.1.1`.\n");
+  assert.ok(rules(r).includes("warn:sec/unpinned-install"));
+});
+
+test("sec: unpinned-install reports script file and line", () => {
+  const r = make("unpinned-script", good(), undefined, { "scripts/setup.sh": "#!/bin/sh\npip install requests\n" });
+  const f = r.findings.find((x) => x.rule === "sec/unpinned-install");
+  assert.ok(f);
+  assert.equal(f.severity, "warn");
+  assert.equal(f.file, "scripts/setup.sh");
+  assert.equal(f.line, 2);
+});
+
+test("sec: unpinned-install downgrades cautionary examples, comments, and tests", () => {
+  const r = make("unpinned-examples", good(), "\nNever run `pip install requests`.\n", {
+    "scripts/setup.sh": "# pip install requests\n",
+    "test/setup.sh": "pip install requests\n",
+  });
+  const found = r.findings.filter((f) => f.rule === "sec/unpinned-install");
+  assert.equal(found.length, 3);
+  assert.ok(found.every((f) => f.severity === "info"));
+});
+
+test("sec: suppressing unpinned-install downgrades rather than hides it", () => {
+  const r = make("unpinned-suppressed", good(), "\n<!-- vet-ignore: sec/unpinned-install -->\nRun `pip install requests`.\n");
+  const f = r.findings.find((x) => x.rule === "sec/unpinned-install");
+  assert.ok(f);
+  assert.equal(f.severity, "info");
+  assert.match(f.message, /suppressed in file/);
+});
+
+test("sec: unpinned-install checks subsequent commands with their own version flags", () => {
+  const r = make("unpinned-chain", good(), "\nRun `cargo install ripgrep && cargo install fd-find --version 10.2.0; pip install requests`.\n");
+  const found = r.findings.filter((f) => f.rule === "sec/unpinned-install");
+  assert.equal(found.length, 2);
+  assert.ok(found.some((f) => /ripgrep/.test(f.message)));
+  assert.ok(found.some((f) => /requests/.test(f.message)));
+});
+
+test("sec: unpinned-install treats force flags as boolean for npm and cargo", () => {
+  for (const [i, command] of ["npm install -g -f serve", "cargo install -f ripgrep"].entries()) {
+    const r = make(`unpinned-force-${i}`, good(), `\nRun \`${command}\`.\n`);
+    assert.ok(rules(r).includes("warn:sec/unpinned-install"), command);
+  }
+});
+
+test("sec: unpinned-install accepts cargo exact selectors and version aliases", () => {
+  const commands = [
+    "cargo install ripgrep --version '=14.1.1'", "cargo install ripgrep --vers 14.1.1",
+    "cargo install ripgrep --vers='=14.1.1'",
+  ];
+  for (const [i, command] of commands.entries()) {
+    const r = make(`unpinned-cargo-selector-${i}`, good(), `\nRun \`${command}\`.\n`);
+    assert.ok(!r.findings.some((f) => f.rule === "sec/unpinned-install"), command);
+  }
+  const range = make("unpinned-cargo-alias-range", good(), "\nRun `cargo install ripgrep --vers '^14.1.1'`.\n");
+  assert.ok(rules(range).includes("warn:sec/unpinned-install"));
+});
+
+test("sec: unpinned-install skips pip policy and output option values", () => {
+  const options = [
+    "--upgrade-strategy eager", "--progress-bar off", "--report install.json",
+    "--config-settings editable_mode=strict", "--root-user-action ignore",
+  ];
+  for (const [i, option] of options.entries()) {
+    const r = make(`unpinned-pip-options-${i}`, good(), `\nRun \`pip install ${option} requests==2.32.3\`.\n`);
+    assert.ok(!r.findings.some((f) => f.rule === "sec/unpinned-install"), option);
+  }
+});
+
+test("sec: unpinned-install warns for bare pip requirements with environment markers", () => {
+  const r = make("unpinned-pip-marker", good(), '\nRun `pip install "requests; python_version >= \'3.10\'"`.\n');
+  const found = r.findings.filter((f) => f.rule === "sec/unpinned-install");
+  assert.equal(found.length, 1);
+  assert.match(found[0].message, /requests/);
+});
+
+test("sec: unpinned-install accepts exact pip requirements with environment markers", () => {
+  const r = make("unpinned-pip-marker-pin", good(), '\nRun `pip install "requests==2.32.3; python_version >= \'3.10\'"`.\n');
+  assert.ok(!r.findings.some((f) => f.rule === "sec/unpinned-install"));
+});
+
+test("sec: unpinned-install handles explicit npm global boolean values", () => {
+  const hit = make("unpinned-npm-global-true", good(), "\nRun `npm install --global=true serve`.\n");
+  assert.ok(rules(hit).includes("warn:sec/unpinned-install"));
+  const miss = make("unpinned-npm-global-false", good(), "\nRun `npm install --global=false serve`.\n");
+  assert.ok(!miss.findings.some((f) => f.rule === "sec/unpinned-install"));
+});
+
 test("spec: links inside a fenced block indented under a list item are ignored", () => {
   const r = make("indented-fence", good(), "\n- End every page with related pages:\n  ```markdown\n  | [Auth](../02-architecture/auth.md) | example |\n  ```\n");
   assert.ok(!rules(r).some((x) => x.endsWith("spec/broken-reference")), "example links inside an indented fence are not real links");

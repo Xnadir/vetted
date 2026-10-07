@@ -8,6 +8,8 @@ All notable changes to this project are documented here. The format follows
 
 ### Added
 
+- `vet` rule `sec/unpinned-install` (warn): flags npm global, pip, and cargo
+  installs without exact version pins, including tags, ranges, and wildcards.
 - `vet` rule `sec/chmod-777` (warn): flags world-writable `chmod 777` commands,
   including recursive variants, in skill bodies and scripts. Thanks @xyi74976-del (#22).
 - `vet` rule `spec/license-missing` (info): reports absent or empty license declarations without

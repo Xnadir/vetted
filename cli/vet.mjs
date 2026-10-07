@@ -79,6 +79,7 @@ const RULES = [
   ["sec/broad-allowed-tools", "warn", "Pre-approves an unrestricted shell"],
   ["sec/binary", "warn", "Ships compiled executables"],
   ["sec/suspicious-install", "warn", "Install command names a package within 1-2 edits of a popular one"],
+  ["sec/unpinned-install", "warn", "npm global, pip, or cargo install without an exact version pin"],
 ];
 
 function parseArgs(argv) {
