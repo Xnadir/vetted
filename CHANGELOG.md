@@ -6,6 +6,11 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+
+- `sec/chmod-777` also flags symbolic modes that grant write to everyone (`a+rwx`,
+  `ugo+rwx`, `o+w`) and modes followed by a sentence-ending period (#55).
+
 ### Added
 
 - `vet` rule `sec/chmod-777` (warn): flags world-writable `chmod 777` commands,
