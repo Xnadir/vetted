@@ -64,6 +64,25 @@ const INSTALL_FLAGS_WITH_VALUE = new Set(["-r", "-e", "-c", "--index-url", "--fe
 const INSTALL_CMD_RE = /\b(npm\s+i(?:nstall)?|pip3?\s+install|cargo\s+add)\b/;
 // A closing backtick ends an inline-code command, so prose after it is not parsed.
 const INSTALL_SHELL_OP_RE = /&&|\|\||[;|#`]/;
+const UNPINNED_INSTALL_CMD_RE = /(?<![\w./-])(npm\s+i(?:nstall)?|pip3?\s+install|cargo\s+install)\b/g;
+// Short flags differ by manager: pip -f takes a source, npm/cargo -f means force.
+const UNPINNED_FLAGS_WITH_VALUE = {
+  npm: new Set(["--prefix", "--registry", "--cache", "--userconfig", "--proxy", "--https-proxy", "--loglevel", "--location"]),
+  pip: new Set([
+    "-r", "--requirement", "-e", "--editable", "-c", "--constraint", "-f", "--find-links",
+    "-i", "--index-url", "--extra-index-url", "--trusted-host", "-t", "--target", "--prefix",
+    "--root", "--cache-dir", "--proxy", "--cert", "--client-cert", "--timeout", "--retries",
+    "--log", "--platform", "--python-version", "--implementation", "--abi", "--only-binary",
+    "--no-binary", "--upgrade-strategy", "--progress-bar", "--report", "--config-settings", "-C",
+    "--root-user-action", "--exists-action", "--src", "--python", "--use-feature", "--use-deprecated",
+  ]),
+  cargo: new Set([
+    "--features", "-F", "--version", "--vers", "--git", "--path", "--branch", "--tag", "--rev",
+    "--bin", "--example", "--target", "--target-dir", "--root", "--registry", "--index",
+    "--jobs", "-j", "--profile", "--config",
+  ]),
+};
+const EXACT_INSTALL_VERSION_RE = /^v?\d+\.\d+\.\d+(?:-[\w.-]+)?(?:\+[\w.-]+)?$/;
 
 // ---------------------------------------------------------------- security patterns
 
@@ -405,6 +424,13 @@ export function vetSkill(skillFile) {
         const hit = suspiciousInstallMatch(pkg);
         if (hit) push("sec/suspicious-install", "warn", `installs \`${pkg}\`, which is 1\u20132 edits from \`${hit}\`; verify it is not a typosquat`, li + 1);
       }
+      for (const { pkg, col } of unpinnedInstallPackages(lines[li])) {
+        const text = lines[li];
+        const mentioned = (isMarkdown && (isNegatedOrCautionary(text, col) || isDefensive(text) || insideQuotes(text, col)))
+          || (!isMarkdown && isCodeComment(text)) || isTestFile(rel);
+        push("sec/unpinned-install", mentioned ? "info" : "warn",
+          `installs \`${pkg}\` without an exact version pin; pin a reviewed version for reproducible installs`, li + 1);
+      }
     }
     if (isMarkdown) {
       for (const m of content.matchAll(/<!--([\s\S]*?)-->/g)) {
@@ -523,6 +549,55 @@ function parseInstallPackages(line) {
     if (name.length >= 5) pkgs.push(name);
   }
   return pkgs;
+}
+
+/** Find registry installs without exact versions; keep quoted selectors intact. */
+function unpinnedInstallPackages(line) {
+  const found = [];
+  for (const command of line.matchAll(UNPINNED_INSTALL_CMD_RE)) {
+    const manager = command[1].split(/\s/)[0];
+    const valueFlags = UNPINNED_FLAGS_WITH_VALUE[manager === "pip3" ? "pip" : manager];
+    const args = [];
+    const rest = line.slice(command.index + command[0].length);
+    for (const token of rest.matchAll(/(?:"[^"]*"|'[^']*'|[^\s"';&|#`])+|[;&|#`]/g)) {
+      if (/^[;&|#`]|^\d*[<>]/.test(token[0])) break;
+      args.push(token[0].replace(/["']/g, ""));
+    }
+    if (manager === "npm" && !args.some((arg) => arg === "-g" || arg === "--global" || arg === "--global=true")) continue;
+    if (manager === "cargo" && args.some((arg) => /^(--git|--path|--list)(=|$)/.test(arg))) continue;
+    const versionFlag = args.findIndex((arg) => /^--vers(?:ion)?(?:=|$)/.test(arg));
+    const cargoVersion = versionFlag < 0 ? "" : args[versionFlag].includes("=")
+      ? args[versionFlag].slice(args[versionFlag].indexOf("=") + 1) : args[versionFlag + 1] ?? "";
+    if (manager === "cargo" && EXACT_INSTALL_VERSION_RE.test(cargoVersion.replace(/^=\s*/, ""))) continue;
+    let skipNext = false;
+    for (const arg of args) {
+      if (skipNext) { skipNext = false; continue; }
+      if (valueFlags.has(arg)) { skipNext = true; continue; }
+      if (arg.startsWith("-")) continue;
+      if (/\.(tgz|tar\.gz|tar\.bz2|tar\.xz|zip|whl)$/i.test(arg)) continue;
+      let pkg;
+      let pinned = false;
+      if (manager === "npm") {
+        const spec = arg.match(/^((?:@[\w.-]+\/)?[\w-][\w.-]*)(?:@(.+))?$/);
+        if (!spec) continue;
+        pkg = spec[1];
+        pinned = EXACT_INSTALL_VERSION_RE.test(spec[2] ?? "");
+      } else if (manager === "cargo") {
+        if (!/^[\w-]+$/.test(arg)) continue;
+        pkg = arg;
+      } else {
+        // A quoted PEP 508 environment marker changes applicability, not the pin.
+        const requirement = arg.split(";", 1)[0].trim();
+        const spec = requirement.match(/^([\w-][\w.-]*(?:\[[\w,.-]+\])?)\s*([<>=!~].*)?$/);
+        if (!spec) continue;
+        pkg = spec[1];
+        // ==/=== select one version; ==1.* still selects a moving set.
+        pinned = /(?:^|,)\s*===?\s*[^*,\s<>=!~]+(?:\s*(?:,|$))/.test(spec[2] ?? "");
+      }
+      if (!pinned) found.push({ pkg, col: command.index });
+    }
+  }
+  return found;
 }
 
 /**
