@@ -7,7 +7,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { vetSkill, crossSkillFindings } from "./lib/rules.mjs";
 import { findSkillFiles, installedLocations, parseRemote, fetchRemote } from "./lib/discover.mjs";
-import { formatText, formatJson, formatMarkdown, formatGithub, summarize } from "./lib/report.mjs";
+import { formatText, formatJson, formatMarkdown, formatGithub, formatSarif, summarize } from "./lib/report.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const VERSION = JSON.parse(readFileSync(join(HERE, "..", "package.json"), "utf8")).version;
@@ -26,7 +26,7 @@ Examples
   npx @menadirali/skill-vet vet --installed              # what are my skills costing me?
 
 Options
-  --format <text|json|markdown|github>  Output format (default: text)
+  --format <text|json|markdown|github|sarif>  Output format (default: text)
   --strict                  Exit 1 on warnings as well as errors
   --ignore <rule,...>       Skip rules (prefix match with /*, e.g. style/*)
   --verbose                 Show info-level findings
@@ -105,7 +105,7 @@ function parseArgs(argv) {
     else if (a.startsWith("-")) throw usage(`unknown option ${a}`);
     else opts.paths.push(a);
   }
-  if (!["text", "json", "markdown", "github"].includes(opts.format)) throw usage(`unknown format ${opts.format}`);
+  if (!["text", "json", "markdown", "github", "sarif"].includes(opts.format)) throw usage(`unknown format ${opts.format}`);
   return { cmd, opts };
 }
 
@@ -170,7 +170,7 @@ function main(argv) {
       }
       return 0;
     }
-    const render = { text: formatText, json: formatJson, markdown: formatMarkdown, github: formatGithub }[opts.format];
+    const render = { text: formatText, json: formatJson, markdown: formatMarkdown, github: formatGithub, sarif: formatSarif }[opts.format];
     const out = render(results, { base, verbose: opts.verbose, heading, quiet: opts.quiet });
     if (out) console.log(out);
     if (opts.summaryFile) appendFileSync(opts.summaryFile, formatMarkdown(results, { base }) + "\n");
