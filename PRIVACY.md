@@ -33,5 +33,5 @@ the eval suite for maintainers. It isn't part of the plugin and never runs on a 
 
 ## Contact
 
-Questions: open an issue at <https://github.com/nadirali1350/vetted/issues>, or report
-privately through [security advisories](https://github.com/nadirali1350/vetted/security/advisories/new).
+Questions: open an issue at <https://github.com/Xnadir/vetted/issues>, or report
+privately through [security advisories](https://github.com/Xnadir/vetted/security/advisories/new).

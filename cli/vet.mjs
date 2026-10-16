@@ -7,7 +7,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { vetSkill, crossSkillFindings } from "./lib/rules.mjs";
 import { findSkillFiles, installedLocations, parseRemote, fetchRemote } from "./lib/discover.mjs";
-import { formatText, formatJson, formatMarkdown, formatGithub, summarize } from "./lib/report.mjs";
+import { formatText, formatJson, formatMarkdown, formatGithub, formatSarif, summarize } from "./lib/report.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const VERSION = JSON.parse(readFileSync(join(HERE, "..", "package.json"), "utf8")).version;
@@ -26,7 +26,7 @@ Examples
   npx @menadirali/skill-vet vet --installed              # what are my skills costing me?
 
 Options
-  --format <text|json|markdown|github>  Output format (default: text)
+  --format <text|json|markdown|github|sarif>  Output format (default: text)
   --strict                  Exit 1 on warnings as well as errors
   --ignore <rule,...>       Skip rules (prefix match with /*, e.g. style/*)
   --verbose                 Show info-level findings
@@ -74,12 +74,12 @@ const RULES = [
   ["sec/destructive", "warn", "Can wipe a home directory or disk"],
   ["sec/persistence", "warn", "Installs shell-profile, cron, launch-agent, or hook persistence"],
   ["sec/sudo", "warn", "Uses sudo to escalate privileges"],
-  ["sec/chmod-777", "warn", "Makes files world-writable with chmod 777"],
+  ["sec/chmod-777", "warn", "Makes files world-writable with numeric or symbolic chmod modes"],
   ["sec/hidden-instructions", "warn", "Instructions inside HTML comments"],
   ["sec/broad-allowed-tools", "warn", "Pre-approves an unrestricted shell"],
   ["sec/binary", "warn", "Ships compiled executables"],
   ["sec/suspicious-install", "warn", "Install command names a package within 1-2 edits of a popular one"],
-  ["sec/unpinned-install", "warn", "npm global, pip, or cargo install without an exact version pin"],
+  ["sec/unpinned-install", "info", "npm global, pip, or cargo install without an exact version pin"],
 ];
 
 function parseArgs(argv) {
@@ -106,7 +106,7 @@ function parseArgs(argv) {
     else if (a.startsWith("-")) throw usage(`unknown option ${a}`);
     else opts.paths.push(a);
   }
-  if (!["text", "json", "markdown", "github"].includes(opts.format)) throw usage(`unknown format ${opts.format}`);
+  if (!["text", "json", "markdown", "github", "sarif"].includes(opts.format)) throw usage(`unknown format ${opts.format}`);
   return { cmd, opts };
 }
 
@@ -171,7 +171,7 @@ function main(argv) {
       }
       return 0;
     }
-    const render = { text: formatText, json: formatJson, markdown: formatMarkdown, github: formatGithub }[opts.format];
+    const render = { text: formatText, json: formatJson, markdown: formatMarkdown, github: formatGithub, sarif: formatSarif }[opts.format];
     const out = render(results, { base, verbose: opts.verbose, heading, quiet: opts.quiet });
     if (out) console.log(out);
     if (opts.summaryFile) appendFileSync(opts.summaryFile, formatMarkdown(results, { base }) + "\n");

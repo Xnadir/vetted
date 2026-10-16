@@ -8,8 +8,45 @@ All notable changes to this project are documented here. The format follows
 
 ### Added
 
-- `vet` rule `sec/unpinned-install` (warn): flags npm global, pip, and cargo
+- `vet` rule `sec/unpinned-install` (info): reports npm global, pip, and cargo
   installs without exact version pins, including tags, ranges, and wildcards.
+  Informational findings remain visible without failing strict scans.
+
+- **Registry of third-party skills** (`registry/`): popular skills from other repositories, tested with
+  the same with/without evals and pinned to a commit. `scripts/vet-external.mjs` fetches the skill,
+  scans it with skill-vet (security errors stop the run), runs it alone in a temporary plugin, and saves
+  the result; `scripts/registry-table.mjs` rebuilds the table. The first entry is
+  `obra/superpowers/verification-before-completion`, using the same cases as `prove-it`.
+
+### Fixed
+
+- **`sec/chmod-777` catches `=` modes and comma lists**: `chmod a=rwx`, `chmod o=rw`, `chmod u+x,o+w`,
+  and `chmod u=rwx,go=rwx` now warn, while lists that grant no world-write (`chmod u+x,g+w`) stay quiet.
+  Thanks @abdullahdevelopment (#73, fixes #63).
+
+## [0.2.0] - 2026-10-07
+
+### Changed
+
+- **The repository moved to `Xnadir/vetted`** after a GitHub username change. Web links, `git clone`,
+  `/plugin marketplace add`, and `npx skills add` still work through GitHub's redirect, but
+  **GitHub Actions do not follow redirects**: change `uses: nadirali1350/vetted@v0` to
+  `uses: Xnadir/vetted@v0`.
+
+### Fixed
+
+- `sec/chmod-777` also flags symbolic modes that grant write to everyone (`a+rwx`,
+  `ugo+rwx`, `o+w`) and modes followed by a sentence-ending period. Thanks @xyi74976-del (#55).
+
+### Added
+
+- Rule reference at `docs/rules.md`, with severities and examples, linked from the README. Thanks @xyi74976-del (#27).
+- Plain factual-question precision eval that checks for a brief, correct answer
+  without loading a workflow skill. Thanks @xyi74976-del (#30).
+- Completed-task handoff eval that checks verified completion and rejects
+  invented outstanding work. Thanks @xyi74976-del (#29).
+- `vet --format sarif`: SARIF 2.1.0 reports with rule IDs, severity levels, and file locations,
+  for GitHub code scanning and other SARIF tools. Thanks @xyi74976-del (#24).
 - `vet` rule `sec/chmod-777` (warn): flags world-writable `chmod 777` commands,
   including recursive variants, in skill bodies and scripts. Thanks @xyi74976-del (#22).
 - `vet` rule `spec/license-missing` (info): reports absent or empty license declarations without

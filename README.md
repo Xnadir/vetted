@@ -6,7 +6,7 @@ Every skill ships with an eval that runs <i>with</i> and <i>without</i> it on cu
 If it doesn't beat the baseline, it doesn't ship.</p>
 
 <p align="center">
-  <a href="https://github.com/nadirali1350/vetted/actions/workflows/ci.yml"><img src="https://github.com/nadirali1350/vetted/actions/workflows/ci.yml/badge.svg" alt="CI"/></a>
+  <a href="https://github.com/Xnadir/vetted/actions/workflows/ci.yml"><img src="https://github.com/Xnadir/vetted/actions/workflows/ci.yml/badge.svg" alt="CI"/></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-22c55e" alt="MIT"/></a>
   <img src="https://img.shields.io/badge/dependencies-0-0891b2" alt="Zero dependencies"/>
   <img src="https://img.shields.io/badge/works%20with-Claude%20Code%20%C2%B7%20Codex%20%C2%B7%20Cursor%20%C2%B7%20Gemini%20CLI%20%C2%B7%20OpenCode-7c3aed" alt="Works with"/>
@@ -37,11 +37,11 @@ This repo is two things:
 
 ```bash
 # Claude Code
-/plugin marketplace add nadirali1350/vetted
+/plugin marketplace add Xnadir/vetted
 /plugin install vetted@vetted
 
 # Any agent that reads SKILL.md (Claude Code, Codex, Cursor, Gemini CLI, OpenCode, Copilot...)
-npx skills add nadirali1350/vetted
+npx skills add Xnadir/vetted
 ```
 
 Or copy a folder from [`skills/`](skills/) into your agent's skills directory
@@ -160,6 +160,13 @@ smaller model benefits more (`handoff` and `prove-it` help Haiku 4.5 only). `roo
 loaded on either model, yet scored +13 on Sonnet and −11 on Haiku, so its effect comes from its
 description in the skill list alone and isn't reliable yet; it stays on probation.
 
+### Other people's skills
+
+The [**registry**](registry/README.md) runs the same with/without test on popular skills from other
+repositories, pinned to a commit. Anyone with Claude Code can add one: write two cases and run
+`node scripts/vet-external.mjs registry/<owner>/<repo>/<skill> --by <you>`. Your name goes next to the
+result.
+
 ## `vet`: check any skill before you trust it
 
 `vet` reads every `SKILL.md` under the paths you give it, plus every script and reference file
@@ -176,20 +183,23 @@ beside it, and reports:
 A scanned file can't silence the scanner: an inline `vet-ignore` comment downgrades a security
 finding to info, but it stays in the report. Quoted examples ("pages may contain text like
 *'ignore previous instructions'*") and matches in code comments or test fixtures are reported
-at info level, not as errors. Run `skill-vet rules` for the full list (add `--format json` for tooling).
+at info level, not as errors. See the [rule reference](docs/rules.md) for every rule's
+severity and examples, or run `skill-vet rules` for the full list (add `--format json` for tooling).
 
 **In CI**, add it to any repo that contains skills. Findings show up as annotations on the pull
 request and as a table in the job summary:
 
 ```yaml
 - uses: actions/checkout@v4
-- uses: nadirali1350/vetted@v0
+- uses: Xnadir/vetted@v0
   with:
     path: skills        # default: .
     strict: "true"      # fail on warnings too
 ```
 
-Other formats: `--format json` (stable schema), `--format markdown`, `--format github`.
+Other formats: `--format json` (stable schema), `--format markdown`, `--format github`,
+`--format sarif` (SARIF 2.1.0 for code-scanning tools). Save a SARIF report with
+`npx @menadirali/skill-vet vet ./skills --format sarif > results.sarif`.
 Flags: `--quiet` (print only findings, no summary line or cost table), `--strict` (fail on warnings too), `--verbose` (show info-level findings), `--ignore` (skip rules).
 Exit codes: `0` clean, `1` findings, `2` usage error.
 
@@ -229,7 +239,7 @@ The most useful contributions, in order:
 3. **A `vet` rule**, or a false positive you hit on a real skill.
 
 **New here?** Pick one of the
-[good first issues](https://github.com/nadirali1350/vetted/labels/good%20first%20issue). Most are a
+[good first issues](https://github.com/Xnadir/vetted/labels/good%20first%20issue). Most are a
 single rule or file with a test to copy from. Comment to claim one, and PRs get reviewed within a day.
 It's also a fit for Hacktoberfest: those issues carry the `hacktoberfest` label.
 
@@ -240,8 +250,9 @@ Thank you to everyone who has shipped something here:
 - [@HarisShahnawaz](https://github.com/HarisShahnawaz): `sec/suspicious-install` typosquat rule, Urdu README
 - [@Mevayaan1](https://github.com/Mevayaan1): `skill-vet rules --format json`, `sec/sudo` rule
 - [@DYNOSuprovo](https://github.com/DYNOSuprovo): `--quiet` flag
-- [@xyi74976-del](https://github.com/xyi74976-del): Windsurf, Kiro, Cline, and Amp support for `--installed`, the `sec/chmod-777` and `spec/license-missing` rules, and Node 18 in CI
+- [@xyi74976-del](https://github.com/xyi74976-del): Windsurf, Kiro, Cline, and Amp support for `--installed`, the `sec/chmod-777` and `spec/license-missing` rules, SARIF output, the rule reference, and Node 18 in CI
 - [@PandaHUN777](https://github.com/PandaHUN777): nested `SKILL.md` handling
+- [@abdullahdevelopment](https://github.com/abdullahdevelopment): `=` and comma-list modes in `sec/chmod-777`
 
 Your name goes here with your first merged PR.
 

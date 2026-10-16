@@ -156,8 +156,8 @@ const SEC_PATTERNS = [
   {
     rule: "sec/chmod-777",
     severity: "warn",
-    re: /\bchmod\s+(?:(?:-[A-Za-z]+|--[a-z-]+|--)\s+)*0?777(?=\s|[`"';&|]|$)/,
-    msg: "makes files world-writable with chmod 777; use the narrowest permissions needed",
+    re: /\bchmod\s+(?:(?:-[A-Za-z]+|--[a-z-]+|--)\s+)*(?:0?777|(?:[ugoa]*[-+=][rwxXst]*,)*[ugoa]*[ao][ugoa]*[+=][rwxXst]*w[rwxXst]*(?:,[ugoa]*[-+=][rwxXst]*)*)(?=\s|[`"';&|]|\.(?=\s|$)|$)/,
+    msg: "makes files world-writable with chmod; use the narrowest permissions needed",
   },
 ];
 
@@ -424,11 +424,8 @@ export function vetSkill(skillFile) {
         const hit = suspiciousInstallMatch(pkg);
         if (hit) push("sec/suspicious-install", "warn", `installs \`${pkg}\`, which is 1\u20132 edits from \`${hit}\`; verify it is not a typosquat`, li + 1);
       }
-      for (const { pkg, col } of unpinnedInstallPackages(lines[li])) {
-        const text = lines[li];
-        const mentioned = (isMarkdown && (isNegatedOrCautionary(text, col) || isDefensive(text) || insideQuotes(text, col)))
-          || (!isMarkdown && isCodeComment(text)) || isTestFile(rel);
-        push("sec/unpinned-install", mentioned ? "info" : "warn",
+      for (const { pkg } of unpinnedInstallPackages(lines[li])) {
+        push("sec/unpinned-install", "info",
           `installs \`${pkg}\` without an exact version pin; pin a reviewed version for reproducible installs`, li + 1);
       }
     }

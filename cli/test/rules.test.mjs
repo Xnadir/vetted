@@ -186,10 +186,54 @@ test("sec: chmod 777 warns for plain and recursive commands", () => {
 });
 
 test("sec: chmod 777 does not flag other modes or lookalikes", () => {
-  const commands = ["chmod 755 file", "chmod -R 644 dir", "chmod 7770 file", "chmod 777.txt", "mychmod 777 file", "chmod --reference=777 file"];
+  const commands = ["chmod 755 file", "chmod -R 644 dir", "chmod 7770 file", "chmod 777.txt", "mychmod 777 file", "chmod --reference=777 file", "chmod u+x file", "chmod g+w file", "chmod a+rx file", "chmod o-w file", "chmod o+w.txt", "chmod 777./file"];
   for (const [i, command] of commands.entries()) {
     const r = make(`chmod-miss-${i}`, good(), `\nRun \`${command}\`.\n`);
     assert.ok(!r.findings.some((f) => f.rule === "sec/chmod-777"), command);
+  }
+});
+
+for (const command of ["chmod a+rwx file", "chmod ugo+rwx file", "chmod o+w file", "chmod -R a+w dir", "chmod --recursive o+rw dir"]) {
+  test(`sec: symbolic world-write warns for ${command}`, () => {
+    const r = make("chmod-symbolic", good(), `\nRun \`${command}\`.\n`);
+    assert.ok(rules(r).includes("warn:sec/chmod-777"), command);
+  });
+}
+
+for (const command of ["chmod a=rwx file", "chmod o=rw file", "chmod u+x,o+w file", "chmod u=rwx,go=rwx dir"]) {
+  test(`sec: '=' and comma-list world-write warns for ${command}`, () => {
+    const r = make("chmod-equals", good(), `\nRun \`${command}\`.\n`);
+    assert.ok(rules(r).includes("warn:sec/chmod-777"), command);
+  });
+}
+
+test("sec: '=' and comma-list modes without world-write are fine", () => {
+  const commands = ["chmod a=rx f", "chmod u+x,g+w f", "chmod o=r f"];
+  for (const [i, command] of commands.entries()) {
+    const r = make(`chmod-equals-miss-${i}`, good(), `\nRun \`${command}\`.\n`);
+    assert.ok(!r.findings.some((f) => f.rule === "sec/chmod-777"), command);
+  }
+});
+
+for (const command of ["chmod 777.", "chmod 0777.", "chmod -R 777.", "chmod o+w."]) {
+  test(`sec: sentence-ending mode warns for ${command}`, () => {
+    const r = make("chmod-sentence", good(), `\nThen run ${command}\n`);
+    assert.ok(rules(r).includes("warn:sec/chmod-777"), command);
+  });
+}
+
+test("sec: symbolic chmod reports script location and preserves security downgrades", () => {
+  const script = make("chmod-symbolic-script", good(), undefined, { "scripts/setup.sh": "#!/bin/sh\nchmod -R a+w cache\n" });
+  const f = script.findings.find((x) => x.rule === "sec/chmod-777");
+  assert.ok(f);
+  assert.equal(f.severity, "warn");
+  assert.equal(f.file, "scripts/setup.sh");
+  assert.equal(f.line, 2);
+
+  for (const body of ["\nNever run `chmod o+w file`.\n", "\n<!-- vet-ignore: sec/chmod-777 -->\nRun `chmod a+rwx file`.\n"]) {
+    const r = make("chmod-symbolic-info", good(), body);
+    assert.ok(rules(r).includes("info:sec/chmod-777"));
+    assert.ok(!rules(r).includes("warn:sec/chmod-777"));
   }
 });
 
@@ -288,14 +332,14 @@ test("sec: suspicious-install stops at the closing backtick of inline code", () 
   assert.ok(!rules(r).includes("warn:sec/suspicious-install"), "pytest must not be flagged as a typosquat of itself");
 });
 
-test("sec: unpinned-install warns for bare npm global, pip, and cargo installs", () => {
+test("sec: unpinned-install reports bare npm global, pip, and cargo installs", () => {
   const commands = [
     "npm install -g serve", "npm i --global @scope/tool", "npm install serve -g",
     "pip install requests", "pip3 install package.name[extra]", "cargo install ripgrep",
   ];
   for (const [i, command] of commands.entries()) {
     const r = make(`unpinned-hit-${i}`, good(), `\nRun \`${command}\`.\n`);
-    assert.ok(rules(r).includes("warn:sec/unpinned-install"), command);
+    assert.ok(rules(r).includes("info:sec/unpinned-install"), command);
   }
 });
 
@@ -314,7 +358,7 @@ test("sec: unpinned-install accepts exact versions for each package manager", ()
   }
 });
 
-test("sec: unpinned-install warns for tags, ranges, and wildcard versions", () => {
+test("sec: unpinned-install reports tags, ranges, and wildcard versions", () => {
   const commands = [
     "npm install -g serve@latest", "npm install -g @scope/tool@next",
     "npm install -g serve@^14.2.4", "npm install -g serve@14.*", "npm install -g serve@14",
@@ -324,7 +368,7 @@ test("sec: unpinned-install warns for tags, ranges, and wildcard versions", () =
   ];
   for (const [i, command] of commands.entries()) {
     const r = make(`unpinned-range-${i}`, good(), `\nRun \`${command}\`.\n`);
-    assert.ok(rules(r).includes("warn:sec/unpinned-install"), command);
+    assert.ok(rules(r).includes("info:sec/unpinned-install"), command);
   }
 });
 
@@ -365,19 +409,19 @@ test("sec: unpinned-install stops at shell and inline-code boundaries", () => {
     assert.ok(!r.findings.some((f) => f.rule === "sec/unpinned-install"), command);
   }
   const r = make("unpinned-next-command", good(), "\nRun `cargo install ripgrep && echo --version 14.1.1`.\n");
-  assert.ok(rules(r).includes("warn:sec/unpinned-install"));
+  assert.ok(rules(r).includes("info:sec/unpinned-install"));
 });
 
 test("sec: unpinned-install reports script file and line", () => {
   const r = make("unpinned-script", good(), undefined, { "scripts/setup.sh": "#!/bin/sh\npip install requests\n" });
   const f = r.findings.find((x) => x.rule === "sec/unpinned-install");
   assert.ok(f);
-  assert.equal(f.severity, "warn");
+  assert.equal(f.severity, "info");
   assert.equal(f.file, "scripts/setup.sh");
   assert.equal(f.line, 2);
 });
 
-test("sec: unpinned-install downgrades cautionary examples, comments, and tests", () => {
+test("sec: unpinned-install keeps cautionary examples, comments, and tests", () => {
   const r = make("unpinned-examples", good(), "\nNever run `pip install requests`.\n", {
     "scripts/setup.sh": "# pip install requests\n",
     "test/setup.sh": "pip install requests\n",
@@ -387,7 +431,7 @@ test("sec: unpinned-install downgrades cautionary examples, comments, and tests"
   assert.ok(found.every((f) => f.severity === "info"));
 });
 
-test("sec: suppressing unpinned-install downgrades rather than hides it", () => {
+test("sec: suppressing unpinned-install retains the informational finding", () => {
   const r = make("unpinned-suppressed", good(), "\n<!-- vet-ignore: sec/unpinned-install -->\nRun `pip install requests`.\n");
   const f = r.findings.find((x) => x.rule === "sec/unpinned-install");
   assert.ok(f);
@@ -406,7 +450,7 @@ test("sec: unpinned-install checks subsequent commands with their own version fl
 test("sec: unpinned-install treats force flags as boolean for npm and cargo", () => {
   for (const [i, command] of ["npm install -g -f serve", "cargo install -f ripgrep"].entries()) {
     const r = make(`unpinned-force-${i}`, good(), `\nRun \`${command}\`.\n`);
-    assert.ok(rules(r).includes("warn:sec/unpinned-install"), command);
+    assert.ok(rules(r).includes("info:sec/unpinned-install"), command);
   }
 });
 
@@ -420,7 +464,7 @@ test("sec: unpinned-install accepts cargo exact selectors and version aliases", 
     assert.ok(!r.findings.some((f) => f.rule === "sec/unpinned-install"), command);
   }
   const range = make("unpinned-cargo-alias-range", good(), "\nRun `cargo install ripgrep --vers '^14.1.1'`.\n");
-  assert.ok(rules(range).includes("warn:sec/unpinned-install"));
+  assert.ok(rules(range).includes("info:sec/unpinned-install"));
 });
 
 test("sec: unpinned-install skips pip policy and output option values", () => {
@@ -434,7 +478,7 @@ test("sec: unpinned-install skips pip policy and output option values", () => {
   }
 });
 
-test("sec: unpinned-install warns for bare pip requirements with environment markers", () => {
+test("sec: unpinned-install reports bare pip requirements with environment markers", () => {
   const r = make("unpinned-pip-marker", good(), '\nRun `pip install "requests; python_version >= \'3.10\'"`.\n');
   const found = r.findings.filter((f) => f.rule === "sec/unpinned-install");
   assert.equal(found.length, 1);
@@ -448,7 +492,7 @@ test("sec: unpinned-install accepts exact pip requirements with environment mark
 
 test("sec: unpinned-install handles explicit npm global boolean values", () => {
   const hit = make("unpinned-npm-global-true", good(), "\nRun `npm install --global=true serve`.\n");
-  assert.ok(rules(hit).includes("warn:sec/unpinned-install"));
+  assert.ok(rules(hit).includes("info:sec/unpinned-install"));
   const miss = make("unpinned-npm-global-false", good(), "\nRun `npm install --global=false serve`.\n");
   assert.ok(!miss.findings.some((f) => f.rule === "sec/unpinned-install"));
 });
