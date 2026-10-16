@@ -3,7 +3,7 @@
 ## Reporting a vulnerability
 
 Please report security issues privately through
-[GitHub security advisories](https://github.com/nadirali1350/vetted/security/advisories/new)
+[GitHub security advisories](https://github.com/Xnadir/vetted/security/advisories/new)
 rather than in a public issue. You'll get a response within a week.
 
 In scope:

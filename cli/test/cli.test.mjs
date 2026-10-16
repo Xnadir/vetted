@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
+import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { join, dirname } from "node:path";
 import { sandbox, GOOD_DESC } from "./helpers.mjs";
@@ -13,6 +14,15 @@ box.skill("clean/ok-skill", `name: ok-skill\ndescription: ${GOOD_DESC}`);
 box.skill("warny/warn-skill", "name: warn-skill\ndescription: Helps with PDFs.");
 box.skill("broken/bad-skill", "name: wrong-name\ndescription: " + GOOD_DESC);
 const p = (d) => join(box.root, d);
+
+test("docs/rules.md lists every rule with its severity", () => {
+  const doc = readFileSync(join(dirname(CLI), "..", "docs", "rules.md"), "utf8").split("\n");
+  for (const rule of JSON.parse(run("rules", "--format", "json").stdout)) {
+    const row = doc.find((line) => line.startsWith(`| \`${rule.id}\` |`));
+    assert.ok(row, `docs/rules.md has no row for ${rule.id}`);
+    assert.ok(row.split("|")[2].includes(rule.severity), `docs/rules.md severity for ${rule.id} should include ${rule.severity}`);
+  }
+});
 
 test("exit 0 on a clean skill, with a text summary", () => {
   const r = run("vet", p("clean"));
@@ -89,6 +99,46 @@ test("json output has a stable shape", () => {
   assert.equal(j.schemaVersion, 1);
   assert.equal(j.summary.skills, 3);
   assert.ok(j.skills.every((s) => Array.isArray(s.findings) && typeof s.cost.descriptionTokens === "number"));
+});
+
+test("sarif reports rules, severity, and source locations without changing exit codes", () => {
+  const sarifBox = sandbox();
+  sarifBox.skill("bad-skill", `name: wrong-name\ndescription: ${GOOD_DESC}`, "\n# Title\n", {
+    "scripts/check #%.sh": "# helper\nchmod 777 cache\n",
+  });
+  const r = spawnSync(process.execPath, [CLI, "vet", ".", "--format", "sarif"], {
+    cwd: sarifBox.root, encoding: "utf8",
+  });
+  assert.equal(r.status, 1, r.stderr);
+  const report = JSON.parse(r.stdout);
+  assert.equal(report.version, "2.1.0");
+  assert.match(report.$schema, /sarif-schema-2\.1\.0\.json$/);
+  assert.equal(report.runs.length, 1);
+  const scan = report.runs[0];
+  assert.equal(scan.tool.driver.name, "skill-vet");
+  const ids = scan.tool.driver.rules.map((rule) => rule.id);
+  assert.equal(new Set(ids).size, ids.length);
+  assert.ok(scan.results.every((finding) => ids.includes(finding.ruleId) && finding.message.text));
+  const error = scan.results.find((finding) => finding.ruleId === "spec/name-dir-mismatch");
+  assert.equal(error.level, "error");
+  assert.equal(error.locations[0].physicalLocation.artifactLocation.uri, "bad-skill/SKILL.md");
+  const warning = scan.results.find((finding) => finding.ruleId === "sec/chmod-777");
+  assert.equal(warning.level, "warning");
+  assert.deepEqual(warning.locations[0].physicalLocation, {
+    artifactLocation: { uri: "bad-skill/scripts/check%20%23%25.sh" }, region: { startLine: 2 },
+  });
+  assert.equal(scan.results.find((finding) => finding.ruleId === "spec/license-missing").level, "note");
+  assert.equal(run("vet", p("warny"), "--format=sarif").status, 0);
+  assert.equal(run("vet", p("warny"), "--format=sarif", "--strict").status, 1);
+  assert.equal(run("vet", p("broken"), "--format=sarif", "--ignore", "spec/name-dir-mismatch").status, 0);
+});
+
+test("sarif emits a valid empty run when no skills are found", () => {
+  const r = run("vet", p("clean/ok-skill/nothing-here"), "--format", "sarif", "--quiet");
+  assert.equal(r.status, 0, r.stderr);
+  const scan = JSON.parse(r.stdout).runs[0];
+  assert.deepEqual(scan.tool.driver.rules, []);
+  assert.deepEqual(scan.results, []);
 });
 
 test("github format emits workflow annotations", () => {

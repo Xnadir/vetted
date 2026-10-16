@@ -12,6 +12,7 @@
 import { readFileSync, writeFileSync, readdirSync, statSync, existsSync, mkdirSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import { hasErroredRun, summarizeCase, pct, signed, shortModel as short, skillStats, verdict } from "./lib/eval-summary.mjs";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const argv = process.argv.slice(2);
@@ -53,62 +54,18 @@ for (const file of files) {
   for (const c of r.cases ?? []) {
     // A run that errored (usage limit, timeout) is graded on whatever it
     // produced, which would publish a fake score. Leave the case out.
-    if ([...(c.arms?.with ?? []), ...(c.arms?.without ?? [])].some((a) => a.error)) {
+    if (hasErroredRun(c)) {
       if (!m.cases.has(c.name)) m.skipped.add(c.name);
       continue;
     }
     m.skipped.delete(c.name);
-    const loadedRuns = (c.arms?.with ?? []).map((a) => a.graders?.find((g) => g.name === "skill-fired")).filter(Boolean);
-    const tally = {};
-    for (const arm of ["with", "without"])
-      for (const run of c.arms?.[arm] ?? [])
-        for (const g of run.graders ?? []) {
-          if (g.name === "skill-fired") continue;
-          tally[g.name] ??= { with: [0, 0], without: [0, 0] };
-          tally[g.name][arm][0] += g.passed ? 1 : 0;
-          tally[g.name][arm][1] += 1;
-        }
-    m.cases.set(c.name, {
-      name: c.name,
-      skill: skillOf.get(c.name) ?? "other",
-      runs: c.runsPerCase,
-      with: c.aggregates?.score ?? null,
-      without: c.aggregates?.scoreWithout ?? null,
-      delta: c.aggregates?.delta ?? null,
-      loaded: loadedRuns.length ? `${loadedRuns.filter((g) => g.passed).length}/${loadedRuns.length}` : null,
-      errors: [...(c.arms?.with ?? []), ...(c.arms?.without ?? [])].filter((a) => a.error).length,
-      graders: Object.fromEntries(Object.entries(tally).map(([k, v]) => [k, { with: `${v.with[0]}/${v.with[1]}`, without: `${v.without[0]}/${v.without[1]}` }])),
-    });
+    m.cases.set(c.name, { name: c.name, skill: skillOf.get(c.name) ?? "other", ...summarizeCase(c) });
   }
 }
 const models = [...byModel.values()];
 
 // ---- helpers
-const mean = (xs) => {
-  const v = xs.filter((x) => x !== null && x !== undefined);
-  return v.length ? v.reduce((a, b) => a + b, 0) / v.length : null;
-};
-const pct = (x) => (x === null ? "–" : `${Math.round(x * 100)}%`);
-const signed = (x) => (x === null ? "–" : `${x > 0.004 ? "+" : ""}${Math.round(x * 100)}`);
-const short = (m) => m.replace(/^claude-/, "").replace(/-(\d)-(\d)$/, " $1.$2").replace(/^(\w)/, (c) => c.toUpperCase());
-const HELPS = 0.095; // +10 points, allowing for float error
-
-function skillStats(m, skill) {
-  const cs = [...m.cases.values()].filter((c) => c.skill === skill);
-  if (!cs.length) return null;
-  const loaded = cs.map((c) => c.loaded).filter(Boolean);
-  const [a, b] = loaded.reduce(([x, y], s) => [x + +s.split("/")[0], y + +s.split("/")[1]], [0, 0]);
-  return { cases: cs.length, with: mean(cs.map((c) => c.with)), without: mean(cs.map((c) => c.without)), delta: mean(cs.map((c) => c.delta)), loaded: b ? `${a}/${b}` : "–" };
-}
-
-function verdict(stats) {
-  const helped = stats.filter(([, s]) => s && s.delta !== null && s.delta >= HELPS).map(([m]) => short(m));
-  const hurt = stats.filter(([, s]) => s && s.delta !== null && s.delta <= -0.045).map(([m]) => short(m));
-  if (hurt.length && !helped.length) return `❌ hurts on ${hurt.join(", ")}`;
-  if (helped.length === stats.length) return "✅ helps";
-  if (helped.length) return `✅ helps on ${helped.join(", ")}`;
-  return "✂️ no measurable effect";
-}
+const skillStatsFor = (m, skill) => skillStats([...m.cases.values()].filter((c) => c.skill === skill));
 
 // ---- render
 const skills = [...new Set(models.flatMap((m) => [...m.cases.values()].map((c) => c.skill)))].sort((a, b) => (a.startsWith("_") ? 1 : b.startsWith("_") ? -1 : a.localeCompare(b)));
@@ -118,7 +75,7 @@ lines.push(
   `| --- | ${models.map(() => "---:").join(" | ")} | ---: | --- |`,
 );
 for (const skill of skills) {
-  const stats = models.map((m) => [m.model, skillStats(m, skill)]);
+  const stats = models.map((m) => [m.model, skillStatsFor(m, skill)]);
   const cells = stats.map(([, s]) => (s ? `${pct(s.with)} → ${pct(s.without)} (**${signed(s.delta)}**)` : "–"));
   const loaded = stats.map(([, s]) => (s ? s.loaded : "–")).join(" · ");
   const retired = existsSync(join(ROOT, "retired", "skills", skill));

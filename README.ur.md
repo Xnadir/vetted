@@ -6,7 +6,7 @@
 اگر یہ baseline سے بہتر نہ ہو، تو شامل نہیں ہوتا۔</p>
 
 <p align="center">
-  <a href="https://github.com/nadirali1350/vetted/actions/workflows/ci.yml"><img src="https://github.com/nadirali1350/vetted/actions/workflows/ci.yml/badge.svg" alt="CI"/></a>
+  <a href="https://github.com/Xnadir/vetted/actions/workflows/ci.yml"><img src="https://github.com/Xnadir/vetted/actions/workflows/ci.yml/badge.svg" alt="CI"/></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-22c55e" alt="MIT"/></a>
   <img src="https://img.shields.io/badge/dependencies-0-0891b2" alt="Zero dependencies"/>
   <img src="https://img.shields.io/badge/works%20with-Claude%20Code%20%C2%B7%20Codex%20%C2%B7%20Cursor%20%C2%B7%20Gemini%20CLI%20%C2%B7%20OpenCode-7c3aed" alt="Works with"/>
@@ -29,11 +29,11 @@
 
 ```bash
 # Claude Code
-/plugin marketplace add nadirali1350/vetted
+/plugin marketplace add Xnadir/vetted
 /plugin install vetted@vetted
 
 # Any agent that reads SKILL.md (Claude Code, Codex, Cursor, Gemini CLI, OpenCode, Copilot...)
-npx skills add nadirali1350/vetted
+npx skills add Xnadir/vetted
 ```
 
 یا [`skills/`](skills/) سے کوئی folder اپنے agent کی skills directory میں کاپی کریں
@@ -159,7 +159,7 @@ Node 18+ کافی ہے، اور کچھ نہیں چاہیے۔ کوئی install ن
 
 ```yaml
 - uses: actions/checkout@v4
-- uses: nadirali1350/vetted@v0
+- uses: Xnadir/vetted@v0
   with:
     path: skills        # default: .
     strict: "true"      # fail on warnings too
@@ -194,7 +194,7 @@ Exit codes: `0` صاف، `1` findings ملیں، `2` usage error۔
 3. **ایک `vet` rule**، یا کوئی false positive جو آپ کو کسی اصل skill پر ملا۔
 
 اچھے پہلے issues یہاں ملیں گے:
-[`good first issue`](https://github.com/nadirali1350/vetted/labels/good%20first%20issue)۔
+[`good first issue`](https://github.com/Xnadir/vetted/labels/good%20first%20issue)۔
 
 ## ماخذ اور شکریہ
 

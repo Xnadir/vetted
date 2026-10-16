@@ -1,7 +1,8 @@
-// Output formats for `skill-vet vet`: text (terminal), json, markdown, github.
+// Output formats for `skill-vet vet`: text (terminal), json, markdown, github, sarif.
 
-import { relative, sep, join } from "node:path";
+import { relative, sep, join, isAbsolute } from "node:path";
 import { homedir } from "node:os";
+import { pathToFileURL } from "node:url";
 
 const useColor = () => process.stdout.isTTY && !process.env.NO_COLOR && process.env.TERM !== "dumb";
 const paint = (code) => (s) => (useColor() ? `\x1b[${code}m${s}\x1b[0m` : String(s));
@@ -94,6 +95,31 @@ export function formatJson(results, { base = process.cwd() } = {}) {
     null,
     2,
   );
+}
+
+export function formatSarif(results, { base = process.cwd() } = {}) {
+  const rules = new Map();
+  const findings = results.flatMap((r) => r.findings.map((f) => {
+    rules.set(f.rule, { id: f.rule });
+    const file = join(r.dir, f.file);
+    const path = relative(base, file);
+    const uri = isAbsolute(path) || path === ".." || path.startsWith(`..${sep}`)
+      ? pathToFileURL(file).href
+      : path.split(sep).map(encodeURIComponent).join("/");
+    const physicalLocation = { artifactLocation: { uri } };
+    if (Number.isInteger(f.line) && f.line > 0) physicalLocation.region = { startLine: f.line };
+    return {
+      ruleId: f.rule,
+      level: { error: "error", warn: "warning", info: "note" }[f.severity],
+      message: { text: f.message },
+      locations: [{ physicalLocation }],
+    };
+  }));
+  return JSON.stringify({
+    $schema: "https://docs.oasis-open.org/sarif/sarif/v2.1.0/errata01/os/schemas/sarif-schema-2.1.0.json",
+    version: "2.1.0",
+    runs: [{ tool: { driver: { name: "skill-vet", rules: [...rules.values()] } }, results: findings }],
+  }, null, 2);
 }
 
 export function formatMarkdown(results, { base = process.cwd() } = {}) {

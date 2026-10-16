@@ -143,8 +143,8 @@ const SEC_PATTERNS = [
   {
     rule: "sec/chmod-777",
     severity: "warn",
-    re: /\bchmod\s+(?:(?:-[A-Za-z]+|--[a-z-]+|--)\s+)*0?777(?=\s|[`"';&|]|$)/,
-    msg: "makes files world-writable with chmod 777; use the narrowest permissions needed",
+    re: /\bchmod\s+(?:(?:-[A-Za-z]+|--[a-z-]+|--)\s+)*(?:0?777|(?:[ugoa]*[-+=][rwxXst]*,)*[ugoa]*[ao][ugoa]*[+=][rwxXst]*w[rwxXst]*(?:,[ugoa]*[-+=][rwxXst]*)*)(?=\s|[`"';&|]|\.(?=\s|$)|$)/,
+    msg: "makes files world-writable with chmod; use the narrowest permissions needed",
   },
   {
     rule: "sec/git-force-push",
@@ -409,7 +409,8 @@ export function vetSkill(skillFile) {
           push(p.rule, "info", `(in a code comment) ${p.msg}: \`${snippet}\``, line);
         } else if (p.severity === "warn" && isTestFile(rel)) {
           push(p.rule, "info", `(in a test file) ${p.msg}: \`${snippet}\``, line);
-        } else if (p.severity === "warn" && isMarkdown && ((p.rule !== "sec/git-force-push" && isDefensive(text)) || insideQuotes(text, col))) {
+        } else if (p.severity === "warn" && isMarkdown && ((isDefensive(text) &&
+          !(p.rule === "sec/git-force-push" && GIT_CONFIRMATION_BYPASS.test(text))) || insideQuotes(text, col))) {
           push(p.rule, "info", `(quoted or framed as something to block) ${p.msg}: \`${snippet}\``, line);
         } else {
           push(p.rule, p.severity, `${p.msg}: \`${snippet}\``, line);
