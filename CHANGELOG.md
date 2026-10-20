@@ -8,6 +8,11 @@ All notable changes to this project are documented here. The format follows
 
 ### Added
 
+- **Scan local ZIP skill packages without extracting**: `skill-vet vet skill.zip` reads stored/deflated
+  members in memory, reuses skill/resource rules and output formats, and reports archive member paths.
+  Bounded input, entry counts and inflation protect against ZIP bombs; unsafe names, links,
+  inconsistent headers and corrupt checksums fail with an input error.
+
 - **Registry of third-party skills** (`registry/`): popular skills from other repositories, tested with
   the same with/without evals and pinned to a commit. `scripts/vet-external.mjs` fetches the skill,
   scans it with skill-vet (security errors stop the run), runs it alone in a temporary plugin, and saves
