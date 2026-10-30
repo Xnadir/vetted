@@ -42,6 +42,10 @@ function memberName(raw, flags) {
   let name;
   try { name = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }).decode(raw); }
   catch { invalid("filename is not valid UTF-8"); }
+  // Windows PowerShell's Compress-Archive and .NET Framework's ZipFile write "\"
+  // as the separator. Read it as "/", as Info-ZIP's unzip does; every check
+  // below then applies to the normalized path, so "..\" is still rejected.
+  name = name.replace(/\\/g, "/");
   const parts = name.replace(/\/$/, "").split("/");
   if (raw.length > 4096 || parts.length > 32) invalid("member path exceeds 4096 bytes or 32 segments");
   if (!name || /[\\:\x00-\x1f\x7f]/.test(name) || parts.some(p => !p || p === "." || p === ".."))
@@ -50,8 +54,9 @@ function memberName(raw, flags) {
 }
 
 // A Unicode path extra field may supply a different name to other readers.
-// Accept it only when it agrees with the primary UTF-8/ASCII name.
-function checkExtra(extra, raw, name) {
+// Accept it only when it agrees byte for byte with the primary name as stored
+// (before "\" is read as "/").
+function checkExtra(extra, raw) {
   let p = 0;
   while (p < extra.length) {
     if (p + 4 > extra.length) invalid("truncated extra field");
@@ -61,7 +66,7 @@ function checkExtra(extra, raw, name) {
     if (id === 1) invalid("ZIP64 is not supported");
     if (id === 0x7075) {
       const field = extra.subarray(p, p + size);
-      if (size < 5 || field[0] !== 1 || field.readUInt32LE(1) !== crc32(raw) || !field.subarray(5).equals(Buffer.from(name)))
+      if (size < 5 || field[0] !== 1 || field.readUInt32LE(1) !== crc32(raw) || !field.subarray(5).equals(raw))
         invalid("conflicting Unicode path extra field");
     }
     p += size;
@@ -101,7 +106,7 @@ function parse(data) {
     if (total > ZIP_LIMITS.totalBytes) invalid("uncompressed content exceeds 50 MiB");
     const raw = data.subarray(p + 46, p + 46 + nameSize);
     const name = memberName(raw, flags), directory = name.endsWith("/");
-    checkExtra(data.subarray(p + 46 + nameSize, p + 46 + nameSize + extraSize), raw, name);
+    checkExtra(data.subarray(p + 46 + nameSize, p + 46 + nameSize + extraSize), raw);
     const attrs = data.readUInt32LE(p + 38), type = (attrs >>> 16) & 0xf000;
     if (type && type !== 0x8000 && type !== 0x4000) invalid(`non-regular member ${JSON.stringify(name)}`);
     if (((attrs & 0x10) && !directory) || (type === 0x4000 && !directory) || (type === 0x8000 && directory) || (directory && size)) invalid("inconsistent directory entry");
@@ -130,7 +135,7 @@ function parse(data) {
     const start = o + 30 + nameSize + extraSize, stop = start + compressed;
     if (stop > cdOffset || data.readUInt16LE(o + 6) !== flags || data.readUInt16LE(o + 8) !== method ||
         !data.subarray(o + 30, o + 30 + nameSize).equals(raw)) invalid("local and central headers disagree");
-    checkExtra(data.subarray(o + 30 + nameSize, start), raw, entry.name);
+    checkExtra(data.subarray(o + 30 + nameSize, start), raw);
     for (const [at, expected] of [[14, crc], [18, compressed], [22, size]]) {
       const actual = data.readUInt32LE(o + at);
       if (actual !== expected && (!(flags & 8) || actual !== 0)) invalid("local and central sizes/CRC disagree");
