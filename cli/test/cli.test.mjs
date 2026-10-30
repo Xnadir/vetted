@@ -66,6 +66,34 @@ test("rules lists the chmod 777 warning", () => {
   assert.equal(rule.severity, "warn");
 });
 
+test("unpinned installs remain visible without failing strict scans", () => {
+  const file = sandbox().skill("unpinned-cli", `name: unpinned-cli\ndescription: ${GOOD_DESC}`, "\nRun `pip install requests`.\n");
+  const r = run("vet", file, "--format", "json");
+  assert.equal(r.status, 0, r.stderr);
+  const f = JSON.parse(r.stdout).skills[0].findings.find((x) => x.rule === "sec/unpinned-install");
+  assert.ok(f);
+  assert.equal(f.severity, "info");
+  assert.equal(run("vet", file, "--strict").status, 0);
+  assert.match(run("vet", file, "--strict", "--verbose").stdout, /sec\/unpinned-install/);
+  assert.doesNotMatch(run("vet", file, "--strict").stdout, /sec\/unpinned-install/);
+  const sarif = run("vet", file, "--strict", "--format", "sarif");
+  assert.equal(sarif.status, 0, sarif.stderr);
+  const result = JSON.parse(sarif.stdout).runs[0].results.find((x) => x.ruleId === "sec/unpinned-install");
+  assert.ok(result);
+  assert.equal(result.level, "note");
+  const ignored = run("vet", file, "--strict", "--format", "json", "--ignore", "sec/unpinned-install");
+  assert.equal(ignored.status, 0, ignored.stderr);
+  assert.ok(!JSON.parse(ignored.stdout).skills[0].findings.some((x) => x.rule === "sec/unpinned-install"));
+});
+
+test("rules lists the unpinned-install informational rule", () => {
+  const r = run("rules", "--format", "json");
+  assert.equal(r.status, 0, r.stderr);
+  const rule = JSON.parse(r.stdout).find((x) => x.id === "sec/unpinned-install");
+  assert.ok(rule);
+  assert.equal(rule.severity, "info");
+});
+
 test("--ignore skips rules, including prefixes", () => {
   assert.equal(run("vet", p("broken"), "--ignore", "spec/name-dir-mismatch").status, 0);
   assert.equal(run("vet", p("warny"), "--strict", "--ignore=trigger/*").status, 0);

@@ -8,6 +8,10 @@ All notable changes to this project are documented here. The format follows
 
 ### Added
 
+- `vet` rule `sec/unpinned-install` (info): reports npm global, pip, and cargo
+  installs without exact version pins, including tags, ranges, and wildcards.
+  Informational findings remain visible without failing strict scans.
+
 - **Registry of third-party skills** (`registry/`): popular skills from other repositories, tested with
   the same with/without evals and pinned to a commit. `scripts/vet-external.mjs` fetches the skill,
   scans it with skill-vet (security errors stop the run), runs it alone in a temporary plugin, and saves

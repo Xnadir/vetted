@@ -60,6 +60,7 @@ explained below the table.
 | `sec/broad-allowed-tools` | warn | Frontmatter that pre-approves an unrestricted shell. | `allowed-tools: Bash Read` |
 | `sec/binary` | warn | Files with compiled-executable extensions that cannot be reviewed as text. | The skill ships an `assets/helper.exe` file. |
 | `sec/suspicious-install` | warn | Package names one or two edits from a popular package, excluding known legitimate neighbors. | `pip install reqeusts` |
+| `sec/unpinned-install` | info | npm global, pip, or cargo installs without an exact version pin; an advisory for reproducibility that does not fail strict scans. | `pip install requests`, `npm install -g serve@latest`, `cargo install ripgrep` |
 
 ## Context and suppressions
 
