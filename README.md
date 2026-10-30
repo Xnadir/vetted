@@ -53,6 +53,7 @@ self-contained `SKILL.md`.
 ```bash
 npx @menadirali/skill-vet vet anthropics/skills     # any GitHub repo
 npx @menadirali/skill-vet vet ./my-skills           # a local folder
+npx @menadirali/skill-vet vet ./skill.zip           # scan an archive without extracting
 npx @menadirali/skill-vet vet --installed           # everything your agents have installed
 ```
 
@@ -186,6 +187,22 @@ finding to info, but it stays in the report. Quoted examples ("pages may contain
 at info level, not as errors. See the [rule reference](docs/rules.md) for every rule's
 severity and examples, or run `skill-vet rules` for the full list (add `--format json` for tooling).
 
+**ZIP skills.** Pass one or more local `.zip` files alongside folders or GitHub repos.
+The scanner reads ZIP members in memory, including scripts and references, and reports paths
+such as `skill.zip!/my-skill/scripts/run.sh`. It never writes extracted files to disk or
+follows archived symlinks. A ZIP can contain a skill folder, several skills, or a root-level
+`SKILL.md`; only the last layout skips the directory-name match check because it has no
+containing folder. The archive's filename need not match the skill name.
+
+Supported archives use stored or deflate compression with ASCII or UTF-8 filenames.
+Limits per archive are **64 MiB compressed input, 50 MiB total uncompressed content, and
+1000 entries** (including directories). Member paths are limited to 4096 bytes and 32
+segments. Traversal, absolute/Windows paths, duplicate or conflicting names, symlinks,
+corrupt headers/checksums, and unsupported ZIP64, encrypted, or multi-disk archives stop
+the scan with exit code `2`, rather than producing a clean report. Nested ZIPs are not
+recursively scanned. Ordinary folder discovery and scanning rules apply inside the ZIP,
+including ignored build directories and the existing 1 MiB text-resource scan limit.
+
 **In CI**, add it to any repo that contains skills. Findings show up as annotations on the pull
 request and as a table in the job summary:
 
@@ -201,7 +218,7 @@ Other formats: `--format json` (stable schema), `--format markdown`, `--format g
 `--format sarif` (SARIF 2.1.0 for code-scanning tools). Save a SARIF report with
 `npx @menadirali/skill-vet vet ./skills --format sarif > results.sarif`.
 Flags: `--quiet` (print only findings, no summary line or cost table), `--strict` (fail on warnings too), `--verbose` (show info-level findings), `--ignore` (skip rules).
-Exit codes: `0` clean, `1` findings, `2` usage error.
+Exit codes: `0` clean, `1` findings, `2` usage or input error.
 
 **What it found in the wild.** We ran it on 9 of the most-starred skill repositories (115
 skills). There were no security findings at warning level or above, which is good news. It did

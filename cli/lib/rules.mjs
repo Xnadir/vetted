@@ -4,7 +4,8 @@
 // severity (error | warn | info), a message, and where possible a file and
 // line. Rules are grouped by prefix: spec/, trigger/, style/, cost/, sec/.
 
-import { readdirSync, readFileSync, statSync, existsSync } from "node:fs";
+import { readFileSync } from "node:fs";
+import { diskSource } from "./source.mjs";
 import { join, relative, resolve, sep, extname, basename, dirname } from "node:path";
 import { parseFrontmatter } from "./frontmatter.mjs";
 
@@ -202,17 +203,17 @@ const PERSONA = /\byou are (an? )?(expert|world[- ]class|senior|highly skilled|e
 
 // ---------------------------------------------------------------- helpers
 
-function listFiles(dir, root = dir, out = []) {
+function listFiles(dir, source, out = []) {
   let entries;
   try {
-    entries = readdirSync(dir, { withFileTypes: true });
+    entries = source.readdirSync(dir, { withFileTypes: true });
   } catch {
     return out;
   }
   for (const e of entries) {
     const p = join(dir, e.name);
     if (e.isDirectory()) {
-      if (!SKIP_DIRS.has(e.name)) listFiles(p, root, out);
+      if (!SKIP_DIRS.has(e.name)) listFiles(p, source, out);
     } else if (e.isFile()) out.push(p);
   }
   return out;
@@ -252,7 +253,8 @@ const ruleMatches = (set, rule) =>
 
 // ---------------------------------------------------------------- main entry
 
-export function vetSkill(skillFile) {
+export function vetSkill(skillFile, { source = diskSource } = {}) {
+  const { readFileSync, existsSync, statSync } = source;
   const skillDir = dirname(resolve(skillFile));
   const text = readFileSync(skillFile, "utf8");
   const { data, body, bodyStartLine, warnings: parseWarnings, unterminated } = parseFrontmatter(text);
@@ -278,8 +280,8 @@ export function vetSkill(skillFile) {
       if (name.length > LIMITS.nameMax) add("spec/name-format", "error", `name is ${name.length} characters; the limit is ${LIMITS.nameMax}`);
       if (!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(name))
         add("spec/name-format", "error", `name "${name}" must be lowercase letters, digits, and single hyphens, not starting or ending with a hyphen`);
-      const dirName = basename(skillDir);
-      if (dirName !== name) add("spec/name-dir-mismatch", "error", `name "${name}" doesn't match its directory "${dirName}"`);
+      const dirName = source.directoryName ? source.directoryName(skillDir) : basename(skillDir);
+      if (dirName !== null && dirName !== name) add("spec/name-dir-mismatch", "error", `name "${name}" doesn't match its directory "${dirName}"`);
     }
     if (!description) add("spec/description-missing", "error", "frontmatter has no `description`; agents use it to decide when to load the skill");
     else if (description.length > LIMITS.descriptionMax)
@@ -373,7 +375,7 @@ export function vetSkill(skillFile) {
     add("style/persona-boilerplate", "info", `"${persona[0]}" adds little for current models; describe the task, constraints, and why they matter instead`, "SKILL.md", bodyStartLine + lineOf(body, persona.index) - 1);
 
   // ---- security: every text file in the skill
-  const files = listFiles(skillDir);
+  const files = listFiles(skillDir, source);
   let resourceBytes = 0;
   for (const f of files) {
     const rel = relative(skillDir, f).split(sep).join("/");
@@ -693,7 +695,7 @@ const STOP = new Set(
 );
 const tokenize = (s) => new Set(s.toLowerCase().match(/[a-z][a-z0-9-]+/g)?.filter((w) => !STOP.has(w) && w.length > 2) ?? []);
 
-export function crossSkillFindings(results) {
+export function crossSkillFindings(results, readText = (path) => readFileSync(path, "utf8")) {
   const extra = [];
   // Same name in different skill roots is normal (one copy per agent), so
   // only skills that share a parent directory can collide.
@@ -706,7 +708,7 @@ export function crossSkillFindings(results) {
   for (const group of byName.values()) {
     const name = group[0].name;
     if (group.length < 2) continue;
-    const distinct = new Set(group.map((g) => readFileSync(g.path, "utf8")));
+    const distinct = new Set(group.map((g) => readText(g.path)));
     if (distinct.size === 1) continue; // identical copies for different agents are fine
     for (const g of group)
       extra.push({ skill: g, finding: { rule: "trigger/duplicate-name", severity: "warn", message: `another skill is also named "${name}" with different content; agents will load only one of them`, file: "SKILL.md" } });

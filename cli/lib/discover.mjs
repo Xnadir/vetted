@@ -1,27 +1,32 @@
 // Finds SKILL.md files: under local paths, in the places agents install
 // skills, or inside a GitHub repository fetched to a temporary directory.
 
-import { readdirSync, readFileSync, statSync, existsSync, mkdtempSync, rmSync } from "node:fs";
+import { readFileSync, existsSync, mkdtempSync, rmSync } from "node:fs";
 import { join, resolve, basename } from "node:path";
 import { homedir, tmpdir } from "node:os";
 import { execFileSync } from "node:child_process";
+import { diskSource } from "./source.mjs";
 
 const SKIP = new Set([".git", "node_modules", "__pycache__", ".venv", "venv", "dist", "build", "target", ".next", ".cache"]);
 const MAX_DEPTH = 10;
 
 // A SKILL.md that opens with a frontmatter block declares a skill of its own.
-function hasFrontmatter(file) {
+function hasFrontmatter(file, source) {
   try {
-    return readFileSync(file, "utf8").replace(/^﻿/, "").split(/\r?\n/, 1)[0].trim() === "---";
+    return source.readFileSync(file, "utf8").replace(/^﻿/, "").split(/\r?\n/, 1)[0].trim() === "---";
   } catch {
     return false;
   }
 }
 
-export function findSkillFiles(root, depth = 0, out = [], insideSkill = false) {
+export function findSkillFiles(root, { source = diskSource } = {}) {
+  return walkSkills(root, source);
+}
+
+function walkSkills(root, source, depth = 0, out = [], insideSkill = false) {
   let st;
   try {
-    st = statSync(root);
+    st = source.statSync(root);
   } catch {
     return out;
   }
@@ -32,7 +37,7 @@ export function findSkillFiles(root, depth = 0, out = [], insideSkill = false) {
   if (!st.isDirectory() || depth > MAX_DEPTH) return out;
   let entries;
   try {
-    entries = readdirSync(root, { withFileTypes: true });
+    entries = source.readdirSync(root, { withFileTypes: true });
   } catch {
     return out;
   }
@@ -41,9 +46,9 @@ export function findSkillFiles(root, depth = 0, out = [], insideSkill = false) {
   // gets its own spec checks.
   const skillFile = entries.find((e) => e.isFile() && e.name === "SKILL.md");
   const path = skillFile && resolve(join(root, skillFile.name));
-  if (path && (!insideSkill || hasFrontmatter(path))) out.push(path);
+  if (path && (!insideSkill || hasFrontmatter(path, source))) out.push(path);
   for (const e of entries) {
-    if (e.isDirectory() && !SKIP.has(e.name)) findSkillFiles(join(root, e.name), depth + 1, out, insideSkill || !!skillFile);
+    if (e.isDirectory() && !SKIP.has(e.name)) walkSkills(join(root, e.name), source, depth + 1, out, insideSkill || !!skillFile);
   }
   return out;
 }

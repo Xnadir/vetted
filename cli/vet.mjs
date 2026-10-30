@@ -2,10 +2,12 @@
 // vetted: checks agent skills (SKILL.md) for spec problems, weak triggers,
 // context cost, outdated prompting style, and security red flags.
 
-import { readFileSync, appendFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { readFileSync, appendFileSync, statSync } from "node:fs";
+import { dirname, join, extname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { vetSkill, crossSkillFindings } from "./lib/rules.mjs";
+import { zipSource } from "./lib/zip.mjs";
+import { diskSource } from "./lib/source.mjs";
 import { findSkillFiles, installedLocations, parseRemote, fetchRemote } from "./lib/discover.mjs";
 import { formatText, formatJson, formatMarkdown, formatGithub, formatSarif, summarize } from "./lib/report.mjs";
 
@@ -15,13 +17,14 @@ const VERSION = JSON.parse(readFileSync(join(HERE, "..", "package.json"), "utf8"
 const HELP = `skill-vet ${VERSION}: check agent skills before you trust them
 
 Usage
-  skill-vet vet [paths or owner/repo ...]   Check skills (default: current directory)
+  skill-vet vet [paths or owner/repo ...]   Check folders, .zip files, or repos (default: current directory)
   skill-vet vet --installed                 Check every skill your agents have installed
   skill-vet rules                           List all rules
   skill-vet rules --format json             List all rules in JSON
 
 Examples
   npx @menadirali/skill-vet vet ./skills
+  npx @menadirali/skill-vet vet ./skill.zip              # scan in memory; no extraction
   npx @menadirali/skill-vet vet anthropics/skills        # vet a repo before installing it
   npx @menadirali/skill-vet vet --installed              # what are my skills costing me?
 
@@ -35,7 +38,10 @@ Options
   -h, --help                Show help
   -v, --version             Show version
 
-Exit codes: 0 clean, 1 findings at the failing level, 2 usage error.`;
+ZIP inputs: stored/deflated, ASCII or UTF-8 names; no encryption, ZIP64, or split archives.
+Limits per ZIP: 64 MiB archive, 50 MiB uncompressed, 1000 entries; no extraction.
+
+Exit codes: 0 clean, 1 findings at the failing level, 2 usage/input error.`;
 
 const RULES = [
   ["spec/frontmatter-missing", "error", "SKILL.md must start with YAML frontmatter"],
@@ -119,6 +125,12 @@ function usage(msg) {
 
 const ignored = (rule, list) => list.some((p) => (p.endsWith("/*") ? rule.startsWith(p.slice(0, -1)) : rule === p));
 
+function isZipPath(path) {
+  if (path.startsWith("https://github.com/") || extname(path).toLowerCase() !== ".zip") return false;
+  try { return !statSync(path).isDirectory(); }
+  catch { return true; } // Missing ZIPs must fail locally, not become repo names.
+}
+
 function main(argv) {
   const { cmd, opts } = parseArgs(argv);
   if (opts.version) return console.log(VERSION), 0;
@@ -137,6 +149,7 @@ function main(argv) {
 
   const cleanups = [];
   const targets = [];
+  const archives = new Map();
   let heading;
   try {
     if (opts.installed) {
@@ -144,28 +157,42 @@ function main(argv) {
       heading = locs.length
         ? `installed skills in ${locs.length} location${locs.length === 1 ? "" : "s"}: ${locs.map((l) => `${l.agent} (${l.scope})`).join(", ")}`
         : "no installed skills found";
-      targets.push(...locs.map((l) => l.path));
+      targets.push(...locs.map((l) => ({ path: l.path, source: diskSource })));
     }
     const paths = opts.paths.length || opts.installed ? opts.paths : ["."];
     for (const p of paths) {
+      if (isZipPath(p)) {
+        const key = resolve(p);
+        if (!archives.has(key)) archives.set(key, zipSource(p));
+        const { root, source } = archives.get(key);
+        targets.push({ path: root, source });
+        continue;
+      }
       const remote = parseRemote(p);
       if (remote) {
         process.stderr.write(`fetching ${remote.owner}/${remote.repo}${remote.ref ? "@" + remote.ref : ""}...\n`);
         const { dir, cleanup } = fetchRemote(remote);
         cleanups.push(cleanup);
-        targets.push(dir);
+        targets.push({ path: dir, source: diskSource });
         heading ??= `${remote.owner}/${remote.repo}`;
-      } else targets.push(p);
+      } else targets.push({ path: p, source: diskSource });
     }
 
-    const files = [...new Set(targets.flatMap((t) => findSkillFiles(t)))];
-    let results = files.map((f) => vetSkill(f));
-    for (const { skill, finding } of crossSkillFindings(results)) skill.findings.push(finding);
+    const sources = new Map();
+    for (const { path, source } of targets) {
+      for (const file of findSkillFiles(path, { source })) {
+        if (sources.has(file) && sources.get(file) !== source) throw new Error(`ambiguous input path: ${file}`);
+        sources.set(file, source);
+      }
+    }
+    let results = [...sources].map(([file, source]) => vetSkill(file, { source }));
+    const readText = (file) => sources.get(file).readFileSync(file, "utf8");
+    for (const { skill, finding } of crossSkillFindings(results, readText)) skill.findings.push(finding);
     results = results
       .map((r) => ({ ...r, findings: r.findings.filter((f) => !ignored(f.rule, opts.ignore)) }))
       .sort((a, b) => a.name.localeCompare(b.name));
 
-    const base = targets.length === 1 && cleanups.length === 1 ? targets[0] : process.cwd();
+    const base = targets.length === 1 && cleanups.length === 1 ? targets[0].path : process.cwd();
     if (!results.length && opts.format === "text") {
       if (!opts.quiet) {
         console.log(opts.installed ? "skill-vet · no installed skills found" : "skill-vet · no SKILL.md files found");
