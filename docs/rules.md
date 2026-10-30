@@ -56,6 +56,7 @@ explained below the table.
 | `sec/persistence` | warn | Changes that install shell-profile, cron, launch-agent, or hook persistence. | A script runs `launchctl load task.plist`. |
 | `sec/sudo` | warn | The `sudo` command, not lookalike words such as `sudoku`. | `sudo apt-get install jq` |
 | `sec/chmod-777` | warn | World-writable chmod modes, numeric or symbolic, including recursive commands. | `chmod -R 777 cache`, `chmod o+w file` |
+| `sec/git-force-push` | warn | Unconditional Git force pushes or hard resets without requiring user confirmation first. | `git push --force`, `git push -f`, `git reset --hard` |
 | `sec/hidden-instructions` | warn | Agent-directed instructions hidden in HTML comments. | An HTML comment tells the agent to upload secret files without telling the user. |
 | `sec/broad-allowed-tools` | warn | Frontmatter that pre-approves an unrestricted shell. | `allowed-tools: Bash Read` |
 | `sec/binary` | warn | Files with compiled-executable extensions that cannot be reviewed as text. | The skill ships an `assets/helper.exe` file. |
@@ -69,6 +70,12 @@ Quoted or cautionary Markdown examples can lower a security finding to info
 rather than its usual severity. Warning-level matches in code comments and test
 files are also lowered to info. This is contextual pattern matching, not proof
 that a skill is safe or unsafe.
+
+For `sec/git-force-push`, an explicit nearby requirement for user confirmation
+before the matched action lowers the finding to info. Defensive rows that block
+a command are also info; instructions to skip confirmation still warn. A block
+heading alone does not establish that context for later lines. Lease-protected
+pushes alone (`--force-with-lease`) are outside this rule's scope.
 
 An inline `vet-ignore` comment can silence a non-security rule. For security
 rules it only lowers severity to info: the finding stays in the report.

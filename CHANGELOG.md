@@ -11,7 +11,9 @@ All notable changes to this project are documented here. The format follows
 - `vet` rule `sec/unpinned-install` (info): reports npm global, pip, and cargo
   installs without exact version pins, including tags, ranges, and wildcards.
   Informational findings remain visible without failing strict scans.
-
+- `vet` rule `sec/git-force-push` (warn): flags unconditional Git force pushes and hard resets.
+  Nearby requirements to confirm with the user first and defensive command tables keep
+  the finding visible as info; instructions to bypass confirmation still warn.
 - **Registry of third-party skills** (`registry/`): popular skills from other repositories, tested with
   the same with/without evals and pinned to a commit. `scripts/vet-external.mjs` fetches the skill,
   scans it with skill-vet (security errors stop the run), runs it alone in a temporary plugin, and saves
