@@ -10,6 +10,7 @@ import { zipSource } from "./lib/zip.mjs";
 import { diskSource } from "./lib/source.mjs";
 import { findSkillFiles, installedLocations, parseRemote, fetchRemote } from "./lib/discover.mjs";
 import { formatText, formatJson, formatMarkdown, formatGithub, formatSarif, summarize } from "./lib/report.mjs";
+import { RULES } from "./lib/rule-catalog.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const VERSION = JSON.parse(readFileSync(join(HERE, "..", "package.json"), "utf8")).version;
@@ -42,52 +43,6 @@ ZIP inputs: stored/deflated, ASCII or UTF-8 names; no encryption, ZIP64, or spli
 Limits per ZIP: 64 MiB archive, 50 MiB uncompressed, 1000 entries; no extraction.
 
 Exit codes: 0 clean, 1 findings at the failing level, 2 usage/input error.`;
-
-const RULES = [
-  ["spec/frontmatter-missing", "error", "SKILL.md must start with YAML frontmatter"],
-  ["spec/frontmatter-parse", "warn", "Frontmatter could not be fully parsed"],
-  ["spec/name-missing", "error", "`name` is required"],
-  ["spec/name-format", "error", "`name`: 1-64 chars, lowercase letters, digits, single hyphens"],
-  ["spec/name-dir-mismatch", "error", "`name` must match the skill's directory"],
-  ["spec/description-missing", "error", "`description` is required"],
-  ["spec/description-length", "error", "`description` must be at most 1024 characters"],
-  ["spec/license-missing", "info", "Frontmatter has no license declaration"],
-  ["spec/compatibility-length", "error", "`compatibility` must be 1-500 characters"],
-  ["spec/metadata-shape", "warn", "`metadata` must map strings to strings"],
-  ["spec/allowed-tools-shape", "warn", "`allowed-tools` should be a space-separated string"],
-  ["spec/unknown-field", "warn", "Frontmatter field no agent recognizes (likely a typo)"],
-  ["spec/extension-field", "info", "Claude Code-only field; ignored by other agents"],
-  ["spec/body-too-long", "warn", "Body over 500 lines or ~5000 tokens"],
-  ["spec/broken-reference", "error", "Linked file inside the skill doesn't exist"],
-  ["trigger/too-vague", "warn", "Description too short to match requests against"],
-  ["trigger/no-when", "warn", "Description doesn't say when to use the skill"],
-  ["trigger/first-person", "info", "Description written in the first person"],
-  ["trigger/listing-truncated", "warn", "Longer than Claude Code's 1536-character listing cap"],
-  ["trigger/duplicate-name", "warn", "Two different skills share a name"],
-  ["trigger/overlap", "warn", "Two descriptions overlap enough to confuse skill selection"],
-  ["style/emphasis-overload", "warn", "Many all-caps directives (MUST/NEVER/CRITICAL)"],
-  ["style/shouting", "warn", "Many words in all caps"],
-  ["style/persona-boilerplate", "info", '"You are an expert..." style persona lines'],
-  ["sec/remote-exec", "error", "Downloads code and pipes it into a shell or interpreter"],
-  ["sec/obfuscated-exec", "error", "Decodes hidden content and executes it"],
-  ["sec/prompt-injection", "error", "Tries to override instructions or hide actions from the user"],
-  ["sec/permission-bypass", "error", "Turns off permission prompts or the sandbox"],
-  ["sec/hidden-unicode", "error", "Invisible or bidirectional-override characters"],
-  ["sec/secret-access", "warn", "References credential or key files"],
-  ["sec/exfil-endpoint", "warn", "Talks to raw IPs or data-collection services"],
-  ["sec/metadata-endpoint", "warn", "Reaches the cloud instance-metadata service"],
-  ["sec/env-dump", "warn", "Dumps all environment variables"],
-  ["sec/destructive", "warn", "Can wipe a home directory or disk"],
-  ["sec/persistence", "warn", "Installs shell-profile, cron, launch-agent, or hook persistence"],
-  ["sec/sudo", "warn", "Uses sudo to escalate privileges"],
-  ["sec/chmod-777", "warn", "Makes files world-writable with numeric or symbolic chmod modes"],
-  ["sec/git-force-push", "warn", "Force-pushes or hard-resets Git without requiring user confirmation first"],
-  ["sec/hidden-instructions", "warn", "Instructions inside HTML comments"],
-  ["sec/broad-allowed-tools", "warn", "Pre-approves an unrestricted shell"],
-  ["sec/binary", "warn", "Ships compiled executables"],
-  ["sec/suspicious-install", "warn", "Install command names a package within 1-2 edits of a popular one"],
-  ["sec/unpinned-install", "info", "npm global, pip, or cargo install without an exact version pin"],
-];
 
 function parseArgs(argv) {
   const opts = { format: "text", strict: false, ignore: [], verbose: false, quiet: false, installed: false, paths: [], summaryFile: null };

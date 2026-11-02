@@ -8,6 +8,9 @@ All notable changes to this project are documented here. The format follows
 
 ### Added
 
+- `--format sarif` now gives each rule a `shortDescription` (the text `skill-vet rules` prints) and a
+  `helpUri` to `docs/rules.md`, so GitHub code scanning and other SARIF viewers show more than the bare
+  rule id. The rule table moved to `cli/lib/rule-catalog.mjs` so both read the same descriptions (fixes #64).
 - `vet` rule `sec/unpinned-install` (info): reports npm global, pip, and cargo
   installs without exact version pins, including tags, ranges, and wildcards.
   Informational findings remain visible without failing strict scans. Thanks @xyi74976-del (#61, fixes #19).
