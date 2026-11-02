@@ -3,6 +3,7 @@
 import { relative, sep, join, isAbsolute } from "node:path";
 import { homedir } from "node:os";
 import { pathToFileURL } from "node:url";
+import { RULES, RULES_HELP_URI } from "./rule-catalog.mjs";
 
 const useColor = () => process.stdout.isTTY && !process.env.NO_COLOR && process.env.TERM !== "dumb";
 const paint = (code) => (s) => (useColor() ? `\x1b[${code}m${s}\x1b[0m` : String(s));
@@ -97,10 +98,15 @@ export function formatJson(results, { base = process.cwd() } = {}) {
   );
 }
 
+const RULE_DESCRIPTIONS = new Map(RULES.map(([id, , description]) => [id, description]));
+
 export function formatSarif(results, { base = process.cwd() } = {}) {
   const rules = new Map();
   const findings = results.flatMap((r) => r.findings.map((f) => {
-    rules.set(f.rule, { id: f.rule });
+    const description = RULE_DESCRIPTIONS.get(f.rule);
+    rules.set(f.rule, description
+      ? { id: f.rule, shortDescription: { text: description }, helpUri: RULES_HELP_URI }
+      : { id: f.rule });
     const file = join(r.dir, f.file);
     const path = relative(base, file);
     const uri = isAbsolute(path) || path === ".." || path.startsWith(`..${sep}`)

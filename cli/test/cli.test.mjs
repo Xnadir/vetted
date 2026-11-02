@@ -156,6 +156,13 @@ test("sarif reports rules, severity, and source locations without changing exit 
     artifactLocation: { uri: "bad-skill/scripts/check%20%23%25.sh" }, region: { startLine: 2 },
   });
   assert.equal(scan.results.find((finding) => finding.ruleId === "spec/license-missing").level, "note");
+  const listed = JSON.parse(run("rules", "--format", "json").stdout);
+  for (const rule of scan.tool.driver.rules) {
+    const entry = listed.find((x) => x.id === rule.id);
+    assert.ok(entry, `${rule.id} is listed by skill-vet rules`);
+    assert.deepEqual(rule.shortDescription, { text: entry.description });
+    assert.equal(rule.helpUri, "https://github.com/Xnadir/vetted/blob/main/docs/rules.md");
+  }
   assert.equal(run("vet", p("warny"), "--format=sarif").status, 0);
   assert.equal(run("vet", p("warny"), "--format=sarif", "--strict").status, 1);
   assert.equal(run("vet", p("broken"), "--format=sarif", "--ignore", "spec/name-dir-mismatch").status, 0);
